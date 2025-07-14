@@ -1,0 +1,62 @@
+Build a full-stack application that performs automated algorithmic trading based on the Smart Money Concept (SMC) used in institutional trading strategies. The app should be capable of identifying and acting on smart money principles such as liquidity grabs, order blocks, break of structure (BOS), and fair value gaps (FVG). It should allow users to monitor and customize strategy parameters.
+Features:
+
+    Market Data Integration:
+
+        Real-time price data and historical OHLCV data (from APIs like Binance, TradingView, or Alpha Vantage).
+
+        Candlestick chart rendering with markups for SMC patterns (e.g., BOS, CHoCH, OB, FVG).
+
+    SMC Detection Engine:
+
+        Implement logic to detect:
+
+            Break of Structure (BOS) and Change of Character (CHoCH)
+
+            Liquidity zones and liquidity sweeps
+
+            Fair Value Gaps (FVG)
+
+            Order blocks and mitigation blocks
+
+    Backtesting:
+
+        Backtest strategies on historical data.
+
+        Visualize entry/exit points and strategy performance metrics (win rate, drawdown, ROI).
+
+    Live Trading:
+
+        Integrate with a brokerage API (like Binance, Alpaca, or MetaTrader via bridge) to place live trades.
+
+        Include risk management: position sizing, stop-loss, take-profit, and trailing stop logic.
+
+    Dashboard:
+
+        User-friendly dashboard showing:
+
+            Open trades, closed trades, account balance
+
+            Strategy performance overview
+
+            Ability to tweak strategy rules and toggle live/backtest mode
+
+    Tech Stack Suggestion:
+
+        Backend: Python (FastAPI or Django) or Node.js
+
+        Trading logic: Python or TypeScript
+
+        Frontend: React.js or Next.js with charting libraries (e.g., TradingView Charting Library, Recharts)
+
+        Database: PostgreSQL or MongoDB
+
+        Broker integration: CCXT, Alpaca API, Binance API
+
+Optional (Advanced):
+
+    Use machine learning to refine detection of SMC patterns
+
+    Add Telegram/Email alerts for SMC pattern formations
+
+    Deploy with Docker and CI/CD for production readiness
