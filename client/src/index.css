@@ -1,0 +1,245 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(211, 100%, 99%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+  
+  /* Trading-specific colors */
+  --trading-dark: hsl(240, 10%, 3.9%);
+  --trading-slate: hsl(213, 12%, 17%);
+  --trading-gray: hsl(215, 8%, 22%);
+  --trading-light: hsl(213, 9%, 39%);
+  --profit-green: hsl(142, 76%, 36%);
+  --loss-red: hsl(0, 84%, 60%);
+  --neutral-blue: hsl(217, 91%, 60%);
+  --warning-amber: hsl(43, 96%, 56%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .trading-card {
+    @apply bg-secondary border border-border rounded-xl;
+  }
+  
+  .trading-button {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+  
+  .trading-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/80;
+  }
+  
+  .trading-button-success {
+    @apply bg-green-600 text-white hover:bg-green-700;
+  }
+  
+  .trading-button-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+  
+  .trading-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+  
+  .trading-input {
+    @apply bg-input border border-border rounded-lg px-3 py-2 text-foreground;
+  }
+  
+  .trading-mono {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+  }
+  
+  .profit-text {
+    @apply text-green-500;
+  }
+  
+  .loss-text {
+    @apply text-red-500;
+  }
+  
+  .neutral-text {
+    @apply text-blue-500;
+  }
+}
+
+@layer utilities {
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(207, 90%, 54%), hsl(142, 76%, 36%));
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .glass-effect {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(240, 3.7%, 15.9%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(240, 5%, 64.9%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(240, 5%, 74.9%);
+}
+
+/* Chart container styles */
+.chart-container {
+  position: relative;
+  background: var(--trading-dark);
+  border: 1px solid var(--trading-gray);
+  border-radius: 8px;
+}
+
+.chart-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+}
+
+.chart-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* SMC Pattern styles */
+.smc-pattern {
+  position: absolute;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.smc-pattern.order-block {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgb(34, 197, 94);
+  color: rgb(34, 197, 94);
+}
+
+.smc-pattern.fvg {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgb(59, 130, 246);
+  color: rgb(59, 130, 246);
+}
+
+.smc-pattern.bos {
+  background: rgba(239, 68, 68, 0.6);
+  border: 1px solid rgb(239, 68, 68);
+  color: rgb(239, 68, 68);
+}
+
+/* Trading status indicators */
+.status-indicator {
+  @apply inline-flex items-center px-2 py-1 rounded text-xs font-medium;
+}
+
+.status-indicator.buy {
+  @apply bg-green-500/20 text-green-500;
+}
+
+.status-indicator.sell {
+  @apply bg-red-500/20 text-red-500;
+}
+
+.status-indicator.pending {
+  @apply bg-amber-500/20 text-amber-500;
+}
+
+.status-indicator.closed {
+  @apply bg-gray-500/20 text-gray-500;
+}
+
+/* Animation keyframes */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none;
+  }
+  
+  .trading-card {
+    @apply p-4;
+  }
+  
+  .trading-button {
+    @apply px-3 py-1.5 text-sm;
+  }
+}
