@@ -102,6 +102,14 @@ export class MemStorage implements IStorage {
       ...strategy,
       id: this.currentStrategyId++,
       createdAt: new Date(),
+      isActive: strategy.isActive ?? false,
+      riskPercentage: strategy.riskPercentage ?? 2,
+      stopLoss: strategy.stopLoss ?? 50,
+      takeProfit: strategy.takeProfit ?? 100,
+      bosConfirmation: strategy.bosConfirmation ?? true,
+      fvgTrading: strategy.fvgTrading ?? true,
+      liquiditySweeps: strategy.liquiditySweeps ?? false,
+      orderBlockFilter: strategy.orderBlockFilter ?? true,
     };
     this.strategies.set(newStrategy.id, newStrategy);
     return newStrategy;
@@ -142,6 +150,10 @@ export class MemStorage implements IStorage {
       exitTime: null,
       exitPrice: null,
       pnl: null,
+      stopLoss: trade.stopLoss ?? null,
+      takeProfit: trade.takeProfit ?? null,
+      strategyId: trade.strategyId ?? null,
+      smcPattern: trade.smcPattern ?? null,
     };
     this.trades.set(newTrade.id, newTrade);
     return newTrade;
@@ -184,6 +196,7 @@ export class MemStorage implements IStorage {
       ...signal,
       id: this.currentSignalId++,
       createdAt: new Date(),
+      description: signal.description ?? null,
     };
     this.smcSignals.set(newSignal.id, newSignal);
     return newSignal;
@@ -218,6 +231,8 @@ export class MemStorage implements IStorage {
       ...backtest,
       id: this.currentBacktestId++,
       createdAt: new Date(),
+      results: backtest.results ?? null,
+      strategyId: backtest.strategyId ?? null,
     };
     this.backtests.set(newBacktest.id, newBacktest);
     return newBacktest;

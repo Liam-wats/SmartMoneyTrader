@@ -38,7 +38,18 @@ export class BinanceMarketDataService implements MarketDataService {
       const response = await fetch(
         `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
       );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      
+      // Check if data is an array before processing
+      if (!Array.isArray(data)) {
+        console.error('API returned non-array data:', data);
+        return this.getMockHistoricalData(pair, limit);
+      }
       
       return data.map((kline: any[]) => ({
         timestamp: kline[0],

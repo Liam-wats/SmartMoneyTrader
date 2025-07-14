@@ -58,7 +58,7 @@
   }
   
   .trading-button-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/80;
+    @apply bg-primary text-primary-foreground hover:bg-blue-600;
   }
   
   .trading-button-success {
@@ -70,7 +70,7 @@
   }
   
   .trading-button-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+    @apply bg-secondary text-secondary-foreground hover:bg-gray-700;
   }
   
   .trading-input {
