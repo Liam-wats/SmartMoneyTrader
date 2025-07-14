@@ -6,6 +6,8 @@ import SMCSignals from '@/components/SMCSignals';
 import ActiveTrades from '@/components/ActiveTrades';
 import StrategySettings from '@/components/StrategySettings';
 import PerformanceAnalytics from '@/components/PerformanceAnalytics';
+import TopDownAnalysis from '@/components/TopDownAnalysis';
+import MLPatternRecognition from '@/components/MLPatternRecognition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Bell } from 'lucide-react';
@@ -114,6 +116,11 @@ export default function Dashboard() {
             </div>
             
             <SMCSignals />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TopDownAnalysis pair={selectedPair} />
+            <MLPatternRecognition pair={selectedPair} timeframe={selectedTimeframe} />
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

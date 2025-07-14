@@ -6,6 +6,8 @@ import { marketDataService } from "./services/marketData";
 import { smcDetectionService } from "./services/smcDetection";
 import { backtestingService } from "./services/backtesting";
 import { tradingService } from "./services/trading";
+import { topDownAnalysisService } from "./services/topDownAnalysis";
+import { mlPatternRecognitionService } from "./services/mlPatternRecognition";
 import { 
   insertStrategySchema, 
   insertTradeSchema, 
@@ -273,6 +275,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(patterns);
     } catch (error) {
       res.status(500).json({ error: 'Failed to analyze SMC patterns' });
+    }
+  });
+
+  // Top-down analysis endpoint
+  app.post('/api/top-down-analysis', async (req, res) => {
+    try {
+      const { pair } = req.body;
+      
+      if (!pair) {
+        return res.status(400).json({ error: 'Pair is required' });
+      }
+      
+      const analysis = await topDownAnalysisService.performTopDownAnalysis(pair);
+      res.json(analysis);
+    } catch (error) {
+      console.error('Error in top-down analysis:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ML Pattern Recognition endpoint
+  app.post('/api/ml-pattern-analysis', async (req, res) => {
+    try {
+      const { pair, timeframe, limit = 100 } = req.body;
+      
+      if (!pair || !timeframe) {
+        return res.status(400).json({ error: 'Pair and timeframe are required' });
+      }
+      
+      const data = await marketDataService.getHistoricalData(pair, timeframe, limit);
+      const predictions = await mlPatternRecognitionService.analyzePattern(data, pair, timeframe);
+      
+      res.json(predictions);
+    } catch (error) {
+      console.error('Error in ML pattern analysis:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

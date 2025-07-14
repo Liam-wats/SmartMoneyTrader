@@ -21,12 +21,18 @@ export class BinanceMarketDataService implements MarketDataService {
   async getRealtimePrice(pair: string): Promise<number> {
     try {
       const symbol = pair.replace('/', '');
-      const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+      const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, {
+        timeout: 5000,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       return parseFloat(data.price);
     } catch (error) {
-      console.error('Error fetching price:', error);
-      // Return mock price if API fails
+      console.warn('Binance API unavailable, using mock data for', pair);
       return this.getMockPrice(pair);
     }
   }
@@ -36,7 +42,8 @@ export class BinanceMarketDataService implements MarketDataService {
       const symbol = pair.replace('/', '');
       const interval = this.timeframeToInterval(timeframe);
       const response = await fetch(
-        `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+        `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
+        { signal: AbortSignal.timeout(5000) }
       );
       
       if (!response.ok) {
@@ -47,7 +54,7 @@ export class BinanceMarketDataService implements MarketDataService {
       
       // Check if data is an array before processing
       if (!Array.isArray(data)) {
-        console.error('API returned non-array data:', data);
+        console.warn('API returned non-array data, using mock data for', pair);
         return this.getMockHistoricalData(pair, limit);
       }
       
@@ -60,7 +67,7 @@ export class BinanceMarketDataService implements MarketDataService {
         volume: parseFloat(kline[5]),
       }));
     } catch (error) {
-      console.error('Error fetching historical data:', error);
+      console.warn('Binance API unavailable, using mock data for', pair);
       return this.getMockHistoricalData(pair, limit);
     }
   }
