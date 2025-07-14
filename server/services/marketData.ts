@@ -14,14 +14,22 @@ export interface MarketDataService {
   unsubscribeFromPrice(pair: string): void;
 }
 
-export class BinanceMarketDataService implements MarketDataService {
+export class TwelveDataMarketDataService implements MarketDataService {
   private priceSubscriptions: Map<string, (price: number) => void> = new Map();
   private priceIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private readonly API_KEY = '670c76c15401482e939dff52a32d6fe8';
+  private rateLimitCache: Map<string, { price: number; timestamp: number }> = new Map();
+  private readonly CACHE_DURATION = 60000; // 1 minute cache to avoid rate limits
 
   async getRealtimePrice(pair: string): Promise<number> {
+    // Check cache first to avoid rate limiting
+    const cached = this.rateLimitCache.get(pair);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.price;
+    }
+
     try {
-      const symbol = pair.replace('/', '');
-      const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, {
+      const response = await fetch(`https://api.twelvedata.com/price?symbol=${pair}&apikey=${this.API_KEY}`, {
         timeout: 5000,
       });
       
@@ -30,20 +38,32 @@ export class BinanceMarketDataService implements MarketDataService {
       }
       
       const data = await response.json();
-      return parseFloat(data.price);
+      
+      // Check for rate limit error
+      if (data.code === 429) {
+        console.warn('TwelveData API rate limit exceeded, using mock data for', pair);
+        return this.getMockPrice(pair);
+      }
+      
+      if (data.price) {
+        const price = parseFloat(data.price);
+        // Cache the result
+        this.rateLimitCache.set(pair, { price, timestamp: Date.now() });
+        return price;
+      }
+      throw new Error('Invalid response format');
     } catch (error) {
-      console.warn('Binance API unavailable, using mock data for', pair);
+      console.warn('TwelveData API unavailable, using mock data for', pair);
       return this.getMockPrice(pair);
     }
   }
 
   async getHistoricalData(pair: string, timeframe: string, limit: number = 100): Promise<CandleData[]> {
     try {
-      const symbol = pair.replace('/', '');
-      const interval = this.timeframeToInterval(timeframe);
+      const interval = this.timeframeToTwelveDataInterval(timeframe);
       const response = await fetch(
-        `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
-        { signal: AbortSignal.timeout(5000) }
+        `https://api.twelvedata.com/time_series?symbol=${pair}&interval=${interval}&outputsize=${limit}&apikey=${this.API_KEY}`,
+        { signal: AbortSignal.timeout(10000) }
       );
       
       if (!response.ok) {
@@ -52,22 +72,22 @@ export class BinanceMarketDataService implements MarketDataService {
       
       const data = await response.json();
       
-      // Check if data is an array before processing
-      if (!Array.isArray(data)) {
-        console.warn('API returned non-array data, using mock data for', pair);
+      // Check if data has values array
+      if (!data.values || !Array.isArray(data.values)) {
+        console.warn('TwelveData API returned invalid data format, using mock data for', pair);
         return this.getMockHistoricalData(pair, limit);
       }
       
-      return data.map((kline: any[]) => ({
-        timestamp: kline[0],
-        open: parseFloat(kline[1]),
-        high: parseFloat(kline[2]),
-        low: parseFloat(kline[3]),
-        close: parseFloat(kline[4]),
-        volume: parseFloat(kline[5]),
-      }));
+      return data.values.map((candle: any) => ({
+        timestamp: new Date(candle.datetime).getTime(),
+        open: parseFloat(candle.open),
+        high: parseFloat(candle.high),
+        low: parseFloat(candle.low),
+        close: parseFloat(candle.close),
+        volume: parseFloat(candle.volume || '0'),
+      })).reverse(); // TwelveData returns newest first, we want oldest first
     } catch (error) {
-      console.warn('Binance API unavailable, using mock data for', pair);
+      console.warn('TwelveData API unavailable, using mock data for', pair);
       return this.getMockHistoricalData(pair, limit);
     }
   }
@@ -93,15 +113,15 @@ export class BinanceMarketDataService implements MarketDataService {
     }
   }
 
-  private timeframeToInterval(timeframe: string): string {
+  private timeframeToTwelveDataInterval(timeframe: string): string {
     const mapping: { [key: string]: string } = {
-      '1m': '1m',
-      '5m': '5m',
-      '15m': '15m',
-      '30m': '30m',
+      '1m': '1min',
+      '5m': '5min',
+      '15m': '15min',
+      '30m': '30min',
       '1h': '1h',
       '4h': '4h',
-      '1d': '1d',
+      '1d': '1day',
     };
     return mapping[timeframe] || '1h';
   }
@@ -152,4 +172,4 @@ export class BinanceMarketDataService implements MarketDataService {
   }
 }
 
-export const marketDataService = new BinanceMarketDataService();
+export const marketDataService = new TwelveDataMarketDataService();

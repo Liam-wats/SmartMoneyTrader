@@ -20,9 +20,9 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js framework
 - **Language**: TypeScript with ES modules
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM (DatabaseStorage implementation)
 - **Real-time Communication**: WebSocket server for live updates
-- **Market Data**: Binance API integration with fallback to mock data
+- **Market Data**: TwelveData API integration with API key authentication
 
 ## Key Components
 
@@ -49,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Data Flow
 
-1. **Market Data Ingestion**: Real-time price data from Binance API
+1. **Market Data Ingestion**: Real-time price data from TwelveData API
 2. **Pattern Detection**: SMC algorithms analyze market structure
 3. **Signal Generation**: Trading signals based on detected patterns
 4. **Strategy Execution**: Automated trade placement with risk management
@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Dependencies
 - **Database**: Neon PostgreSQL serverless database
-- **Market Data**: Binance API for real-time and historical data
+- **Market Data**: TwelveData API for real-time and historical forex data
 - **UI Components**: Radix UI primitives with shadcn/ui styling
 - **Charts**: Custom canvas-based charting with SMC markup support
 
@@ -86,7 +86,7 @@ Preferred communication style: Simple, everyday language.
 
 1. **Monorepo Structure**: Shared schema and types between client/server
 2. **WebSocket Integration**: Real-time updates for trading signals and market data
-3. **Memory Storage Fallback**: In-memory data store for development/testing
+3. **Database Storage**: PostgreSQL with Drizzle ORM for persistent data storage
 4. **Modular Service Architecture**: Separate services for different trading functions
 5. **SMC-Focused Design**: UI and logic specifically tailored for Smart Money Concept trading
 6. **Risk Management**: Built-in position sizing and stop-loss mechanisms
