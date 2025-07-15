@@ -14,6 +14,7 @@ import {
   insertSMCSignalSchema,
   insertBacktestSchema 
 } from "@shared/schema";
+import { alertService } from "./services/alertService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -25,6 +26,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   wss.on('connection', (ws) => {
     connectedClients.add(ws);
+    alertService.addWebSocketClient(ws);
     
     ws.on('close', () => {
       connectedClients.delete(ws);
@@ -95,7 +97,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Strategy routes
   app.get('/api/strategies', async (req, res) => {
     try {
-      const strategies = await storage.getStrategies(1);
+      // Get demo user
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+      const strategies = await storage.getStrategies(user.id);
       res.json(strategies);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch strategies' });
@@ -104,11 +115,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/strategies', async (req, res) => {
     try {
+      console.log('Received strategy data:', req.body);
       const strategy = insertStrategySchema.parse(req.body);
-      const newStrategy = await storage.createStrategy({ ...strategy, userId: 1 });
+      console.log('Parsed strategy:', strategy);
+      
+      // Ensure demo user exists
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+      
+      console.log('Using user ID:', user.id);
+      const newStrategy = await storage.createStrategy({ ...strategy, userId: user.id });
       res.json(newStrategy);
     } catch (error) {
-      res.status(400).json({ error: 'Invalid strategy data' });
+      console.error('Strategy creation error:', error);
+      res.status(400).json({ error: 'Invalid strategy data', details: error.message });
     }
   });
 
@@ -172,7 +198,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Trade routes
   app.get('/api/trades', async (req, res) => {
     try {
-      const trades = await storage.getTrades(1);
+      // Get demo user
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+      const trades = await storage.getTrades(user.id);
       res.json(trades);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch trades' });
@@ -181,7 +216,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/trades/active', async (req, res) => {
     try {
-      const trades = await storage.getActiveTrades(1);
+      // Get demo user
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+      const trades = await storage.getActiveTrades(user.id);
       res.json(trades);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch active trades' });
@@ -191,13 +235,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/trades', async (req, res) => {
     try {
       const trade = insertTradeSchema.parse(req.body);
-      const newTrade = await storage.createTrade({ ...trade, userId: 1 });
+      // Get demo user
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+
+      const newTrade = await storage.createTrade({ ...trade, userId: user.id });
       
       // Broadcast trade opened event
       broadcast({
         type: 'trade_opened',
         trade: newTrade
       });
+
+      // Send entry alert
+      const alert = alertService.createEntryAlert(newTrade.id, newTrade.pair, newTrade.entryPrice, newTrade.type);
+      await alertService.sendAlert(user.id, alert);
       
       res.json(newTrade);
     } catch (error) {
@@ -350,17 +408,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { strategyId } = req.body;
       
       // Ensure demo user exists
-      let user = await storage.getUser(1);
+      let user = await storage.getUserByUsername('demo_user');
       if (!user) {
-        // Try to find existing user by username first
-        user = await storage.getUserByUsername('demo_user');
-        if (!user) {
-          user = await storage.createUser({
-            username: 'demo_user',
-            password: 'demo_password',
-            balance: 10000
-          });
-        }
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
       }
       
       let strategy = await storage.getStrategy(strategyId || 1);
@@ -385,6 +439,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: 'strategy_started',
         strategy: strategy
       });
+
+      // Send trading alert
+      const alert = alertService.createStrategyStartAlert(strategy.id, strategy.name);
+      await alertService.sendAlert(user.id, alert);
       
       res.json({ success: true, strategy });
     } catch (error) {
@@ -398,6 +456,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcast({
         type: 'strategy_stopped'
       });
+
+      // Send strategy stop alert
+      let user = await storage.getUserByUsername('demo_user');
+      if (user) {
+        const alert = alertService.createStrategyStopAlert(1, 'Active Strategy');
+        await alertService.sendAlert(user.id, alert);
+      }
       
       res.json({ success: true });
     } catch (error) {
@@ -412,10 +477,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { strategyId, startDate, endDate, pair, timeframe } = req.body;
       let strategy = await storage.getStrategy(strategyId);
       
+      // Ensure user exists for strategy creation
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+      
       // Create default strategy if none exists
       if (!strategy) {
         strategy = await storage.createStrategy({
-          userId: 1,
+          userId: user.id,
           name: 'Default SMC Strategy',
           riskPercentage: 2,
           stopLoss: 50,
@@ -432,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Store backtest results
       const backtest = await storage.createBacktest({
-        userId: 1,
+        userId: user.id,
         strategyId,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
@@ -446,13 +521,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(backtest);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to run backtest' });
+      console.error('Backtest error:', error);
+      res.status(500).json({ error: 'Failed to run backtest', details: error.message });
     }
   });
 
   app.get('/api/backtests', async (req, res) => {
     try {
-      const backtests = await storage.getBacktests(1);
+      // Get demo user
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+      const backtests = await storage.getBacktests(user.id);
       res.json(backtests);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch backtests' });
@@ -462,7 +547,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analytics routes
   app.get('/api/analytics/performance', async (req, res) => {
     try {
-      const trades = await storage.getTrades(1);
+      // Get demo user
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+      const trades = await storage.getTrades(user.id);
       const completedTrades = trades.filter(t => t.status === 'CLOSED');
       
       const analytics = {

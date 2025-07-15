@@ -34,7 +34,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserBalance(userId: number, balance: number): Promise<void> {
-    await db.update(users).set({ balance }).where(eq(users.id, userId));
+    await db.update(users).set({ accountBalance: balance }).where(eq(users.id, userId));
   }
 
   async getStrategies(userId: number): Promise<Strategy[]> {

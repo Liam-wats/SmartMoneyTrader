@@ -12,6 +12,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AlertNotifications } from '@/components/AlertNotifications';
 
 export default function Dashboard() {
   const [isStrategyActive, setIsStrategyActive] = useState(false);
@@ -165,9 +166,7 @@ export default function Dashboard() {
                 Pause All
               </Button>
               
-              <Button variant="ghost" size="sm">
-                <Bell className="w-4 h-4" />
-              </Button>
+              <AlertNotifications />
             </div>
           </div>
         </header>
