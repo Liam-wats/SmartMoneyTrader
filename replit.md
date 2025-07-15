@@ -8,6 +8,24 @@ This is a full-stack algorithmic trading application built on the Smart Money Co
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (July 15, 2025)
+
+### Migration from Replit Agent to Standard Environment
+- ✅ Successfully migrated SMC trading platform to standard Replit environment
+- ✅ Fixed all core functionality issues:
+  - Start Strategy button now connects to real API endpoints
+  - New Trade dialog functionality restored with full form
+  - Backtesting engine working with proper data flow
+  - Trading alerts system implemented for all trade events
+- ✅ Enhanced alert system with comprehensive notifications:
+  - Entry price alerts with emoji indicators
+  - Exit price notifications with P&L display
+  - Stop-loss hit warnings with red styling
+  - Take-profit achievement confirmations
+  - Real-time WebSocket broadcasting for all events
+- ✅ Fixed unhandled promise rejections and added error handling
+- ✅ Database properly configured with PostgreSQL and all migrations applied
+
 ## System Architecture
 
 ### Frontend Architecture

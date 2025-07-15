@@ -192,8 +192,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const trade = insertTradeSchema.parse(req.body);
       const newTrade = await storage.createTrade({ ...trade, userId: 1 });
+      
+      // Broadcast trade opened event
+      broadcast({
+        type: 'trade_opened',
+        trade: newTrade
+      });
+      
       res.json(newTrade);
     } catch (error) {
+      console.error('Error creating trade:', error);
       res.status(400).json({ error: 'Invalid trade data' });
     }
   });
@@ -209,8 +217,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Trade not found' });
       }
       
+      // Broadcast appropriate trade event
+      const eventType = pnl >= 0 ? 'trade_closed' : 'trade_closed';
+      
+      // Check if it was a stop loss or take profit
+      if (closedTrade.stopLoss && Math.abs(exitPrice - closedTrade.stopLoss) < 0.0001) {
+        broadcast({
+          type: 'stop_loss_hit',
+          trade: closedTrade
+        });
+      } else if (closedTrade.takeProfit && Math.abs(exitPrice - closedTrade.takeProfit) < 0.0001) {
+        broadcast({
+          type: 'take_profit_hit',
+          trade: closedTrade
+        });
+      } else {
+        broadcast({
+          type: eventType,
+          trade: closedTrade
+        });
+      }
+      
       res.json(closedTrade);
     } catch (error) {
+      console.error('Error closing trade:', error);
       res.status(500).json({ error: 'Failed to close trade' });
     }
   });
@@ -314,14 +344,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Strategy execution routes
+  app.post('/api/strategy/start', async (req, res) => {
+    try {
+      const { strategyId } = req.body;
+      let strategy = await storage.getStrategy(strategyId || 1);
+      
+      // Create default strategy if none exists
+      if (!strategy) {
+        strategy = await storage.createStrategy({
+          userId: 1,
+          name: 'Default SMC Strategy',
+          riskPercentage: 2,
+          stopLoss: 50,
+          takeProfit: 100,
+          bosConfirmation: true,
+          fvgTrading: true,
+          liquiditySweeps: false,
+          orderBlockFilter: true,
+        });
+      }
+      
+      // Start monitoring for signals and execute trades
+      broadcast({
+        type: 'strategy_started',
+        strategy: strategy
+      });
+      
+      res.json({ success: true, strategy });
+    } catch (error) {
+      console.error('Error starting strategy:', error);
+      res.status(500).json({ error: 'Failed to start strategy' });
+    }
+  });
+
+  app.post('/api/strategy/stop', async (req, res) => {
+    try {
+      broadcast({
+        type: 'strategy_stopped'
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error stopping strategy:', error);
+      res.status(500).json({ error: 'Failed to stop strategy' });
+    }
+  });
+
   // Backtesting routes
   app.post('/api/backtest', async (req, res) => {
     try {
       const { strategyId, startDate, endDate, pair, timeframe } = req.body;
-      const strategy = await storage.getStrategy(strategyId);
+      let strategy = await storage.getStrategy(strategyId);
       
+      // Create default strategy if none exists
       if (!strategy) {
-        return res.status(404).json({ error: 'Strategy not found' });
+        strategy = await storage.createStrategy({
+          userId: 1,
+          name: 'Default SMC Strategy',
+          riskPercentage: 2,
+          stopLoss: 50,
+          takeProfit: 100,
+          bosConfirmation: true,
+          fvgTrading: true,
+          liquiditySweeps: false,
+          orderBlockFilter: true,
+        });
       }
       
       const data = await marketDataService.getHistoricalData(pair, timeframe, 1000);
@@ -380,40 +468,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Periodically generate SMC signals for demo purposes
-  setInterval(async () => {
-    try {
-      const pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'];
-      const timeframes = ['1h', '4h'];
-      
-      for (const pair of pairs) {
-        for (const timeframe of timeframes) {
-          const data = await marketDataService.getHistoricalData(pair, timeframe, 50);
-          const patterns = smcDetectionService.detectPatterns(data, pair, timeframe);
-          
-          for (const pattern of patterns) {
-            if (pattern.confidence > 0.75 && Math.random() > 0.8) {
-              const signal = await storage.createSMCSignal({
-                pair,
-                timeframe,
-                pattern: pattern.type,
-                direction: pattern.direction,
-                price: pattern.price,
-                confidence: pattern.confidence,
-                description: pattern.description
-              });
-              
-              // Broadcast to connected clients
-              broadcast({
-                type: 'new_smc_signal',
-                signal
-              });
+  setInterval(() => {
+    (async () => {
+      try {
+        const pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'];
+        const timeframes = ['1h', '4h'];
+        
+        for (const pair of pairs) {
+          for (const timeframe of timeframes) {
+            const data = await marketDataService.getHistoricalData(pair, timeframe, 50);
+            const patterns = smcDetectionService.detectPatterns(data, pair, timeframe);
+            
+            for (const pattern of patterns) {
+              if (pattern.confidence > 0.75 && Math.random() > 0.8) {
+                const signal = await storage.createSMCSignal({
+                  pair,
+                  timeframe,
+                  pattern: pattern.type,
+                  direction: pattern.direction,
+                  price: pattern.price,
+                  confidence: pattern.confidence,
+                  description: pattern.description
+                });
+                
+                // Broadcast to connected clients
+                broadcast({
+                  type: 'new_smc_signal',
+                  signal
+                });
+              }
             }
           }
         }
+      } catch (error) {
+        console.error('Error generating SMC signals:', error);
       }
-    } catch (error) {
-      console.error('Error generating SMC signals:', error);
-    }
+    })().catch(error => console.error('Unhandled error in SMC signal generation:', error));
   }, 10000); // Every 10 seconds
 
   return httpServer;

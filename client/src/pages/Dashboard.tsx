@@ -24,33 +24,104 @@ export default function Dashboard() {
   // Subscribe to trading signals
   subscribe('trading_signal', (data) => {
     toast({
-      title: "Trading Signal",
-      description: `${data.signal.type} signal for ${data.signal.pair}`,
+      title: "🚨 Trading Signal",
+      description: `${data.signal.type} signal for ${data.signal.pair} at ${data.signal.price}`,
     });
   });
 
   // Subscribe to SMC signals
   subscribe('new_smc_signal', (data) => {
     toast({
-      title: "SMC Pattern Detected",
+      title: "🔍 SMC Pattern Detected",
       description: `${data.signal.pattern} pattern on ${data.signal.pair}`,
     });
   });
 
-  const handleStartStrategy = () => {
+  // Subscribe to strategy events
+  subscribe('strategy_started', (data) => {
     setIsStrategyActive(true);
+  });
+
+  subscribe('strategy_stopped', (data) => {
+    setIsStrategyActive(false);
+  });
+
+  // Subscribe to trade events for alerts
+  subscribe('trade_opened', (data) => {
     toast({
-      title: "Strategy Started",
-      description: "Algorithmic trading strategy is now active",
+      title: "📈 Trade Opened",
+      description: `${data.trade.type} ${data.trade.pair} at ${data.trade.entryPrice}`,
     });
+  });
+
+  subscribe('trade_closed', (data) => {
+    const pnlEmoji = data.trade.pnl >= 0 ? '💰' : '📉';
+    toast({
+      title: `${pnlEmoji} Trade Closed`,
+      description: `P&L: $${data.trade.pnl?.toFixed(2)} | Exit: ${data.trade.exitPrice}`,
+    });
+  });
+
+  subscribe('stop_loss_hit', (data) => {
+    toast({
+      title: "🛑 Stop Loss Hit",
+      description: `${data.trade.pair} stopped at ${data.trade.exitPrice}`,
+      variant: "destructive",
+    });
+  });
+
+  subscribe('take_profit_hit', (data) => {
+    toast({
+      title: "🎯 Take Profit Hit",
+      description: `${data.trade.pair} target reached at ${data.trade.exitPrice}`,
+    });
+  });
+
+  const handleStartStrategy = async () => {
+    try {
+      const response = await fetch('/api/strategy/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strategyId: 1 }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to start strategy');
+      
+      setIsStrategyActive(true);
+      toast({
+        title: "Strategy Started",
+        description: "Algorithmic trading strategy is now active",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to start trading strategy",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleStopStrategy = () => {
-    setIsStrategyActive(false);
-    toast({
-      title: "Strategy Stopped",
-      description: "Algorithmic trading strategy has been paused",
-    });
+  const handleStopStrategy = async () => {
+    try {
+      const response = await fetch('/api/strategy/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) throw new Error('Failed to stop strategy');
+      
+      setIsStrategyActive(false);
+      toast({
+        title: "Strategy Stopped",
+        description: "Algorithmic trading strategy has been paused",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to stop trading strategy",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
