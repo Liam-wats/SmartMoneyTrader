@@ -8,6 +8,7 @@ import { backtestingService } from "./services/backtesting";
 import { tradingService } from "./services/trading";
 import { topDownAnalysisService } from "./services/topDownAnalysis";
 import { mlPatternRecognitionService } from "./services/mlPatternRecognition";
+import { marketHoursService } from "./services/marketHours";
 import { 
   insertStrategySchema, 
   insertTradeSchema, 
@@ -54,23 +55,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Handle WebSocket messages
   async function handleWebSocketMessage(ws: WebSocket, data: any) {
-    switch (data.type) {
-      case 'subscribe_market_data':
-        const pair = data.pair;
-        marketDataService.subscribeToPrice(pair, (price) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'market_data_update',
-              pair,
-              price
-            }));
-          }
-        });
-        break;
-        
-      case 'unsubscribe_market_data':
-        marketDataService.unsubscribeFromPrice(data.pair);
-        break;
+    try {
+      switch (data.type) {
+        case 'subscribe_market_data':
+          const pair = data.pair;
+          marketDataService.subscribeToPrice(pair, (price) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'market_data_update',
+                pair,
+                price
+              }));
+            }
+          });
+          break;
+          
+        case 'unsubscribe_market_data':
+          marketDataService.unsubscribeFromPrice(data.pair);
+          break;
+          
+        default:
+          console.warn('Unknown WebSocket message type:', data.type);
+      }
+    } catch (error) {
+      console.error('Error handling WebSocket message:', error);
     }
   }
 
@@ -90,7 +98,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(1); // Demo user
       res.json(user);
     } catch (error) {
+      console.error('Error fetching user:', error);
       res.status(500).json({ error: 'Failed to fetch user' });
+    }
+  });
+
+  // Get market status
+  app.get('/api/market-status', async (req, res) => {
+    try {
+      const marketStatus = marketHoursService.getMarketStatus();
+      res.json(marketStatus);
+    } catch (error) {
+      console.error('Error fetching market status:', error);
+      res.status(500).json({ error: 'Failed to fetch market status' });
     }
   });
 
@@ -109,6 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const strategies = await storage.getStrategies(user.id);
       res.json(strategies);
     } catch (error) {
+      console.error('Error fetching strategies:', error);
       res.status(500).json({ error: 'Failed to fetch strategies' });
     }
   });
@@ -576,44 +597,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Periodically generate SMC signals for demo purposes
+  // Periodically generate SMC signals only when market is open
   setInterval(() => {
     (async () => {
       try {
+        // Only process signals when market is open
+        if (!marketHoursService.shouldProcessSignals()) {
+          return;
+        }
+
         const pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'];
         const timeframes = ['1h', '4h'];
         
         for (const pair of pairs) {
           for (const timeframe of timeframes) {
-            const data = await marketDataService.getHistoricalData(pair, timeframe, 50);
-            const patterns = smcDetectionService.detectPatterns(data, pair, timeframe);
-            
-            for (const pattern of patterns) {
-              if (pattern.confidence > 0.75 && Math.random() > 0.8) {
-                const signal = await storage.createSMCSignal({
-                  pair,
-                  timeframe,
-                  pattern: pattern.type,
-                  direction: pattern.direction,
-                  price: pattern.price,
-                  confidence: pattern.confidence,
-                  description: pattern.description
-                });
-                
-                // Broadcast to connected clients
-                broadcast({
-                  type: 'new_smc_signal',
-                  signal
-                });
+            try {
+              const data = await marketDataService.getHistoricalData(pair, timeframe, 50);
+              const patterns = smcDetectionService.detectPatterns(data, pair, timeframe);
+              
+              for (const pattern of patterns) {
+                if (pattern.confidence > 0.75 && Math.random() > 0.8) {
+                  try {
+                    const signal = await storage.createSMCSignal({
+                      pair,
+                      timeframe,
+                      pattern: pattern.type,
+                      direction: pattern.direction,
+                      price: pattern.price,
+                      confidence: pattern.confidence,
+                      description: pattern.description
+                    });
+                    
+                    // Broadcast to connected clients
+                    broadcast({
+                      type: 'new_smc_signal',
+                      signal
+                    });
+                  } catch (signalError) {
+                    console.error(`Error creating SMC signal for ${pair}:`, signalError);
+                  }
+                }
               }
+            } catch (pairError) {
+              console.error(`Error processing ${pair} ${timeframe}:`, pairError);
             }
           }
         }
       } catch (error) {
-        console.error('Error generating SMC signals:', error);
+        console.error('Error in SMC signal generation:', error);
       }
     })().catch(error => console.error('Unhandled error in SMC signal generation:', error));
-  }, 10000); // Every 10 seconds
+  }, 30000); // Every 30 seconds to reduce load
 
   return httpServer;
 }

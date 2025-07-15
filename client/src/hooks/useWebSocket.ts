@@ -49,12 +49,23 @@ export function useWebSocket(url: string) {
 
   const send = (message: WebSocketMessage) => {
     if (socket && isConnected) {
-      socket.send(JSON.stringify(message));
+      try {
+        socket.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('Error sending WebSocket message:', error);
+      }
     }
   };
 
   const subscribe = (messageType: string, handler: (data: any) => void) => {
-    messageHandlers.current.set(messageType, handler);
+    const wrappedHandler = (data: any) => {
+      try {
+        handler(data);
+      } catch (error) {
+        console.error(`Error in WebSocket handler for ${messageType}:`, error);
+      }
+    };
+    messageHandlers.current.set(messageType, wrappedHandler);
   };
 
   const unsubscribe = (messageType: string) => {

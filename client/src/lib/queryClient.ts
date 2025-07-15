@@ -60,7 +60,22 @@ export const queryClient = new QueryClient({
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
+    
+    // Check if it's a network error or API error
+    if (event.reason instanceof Error) {
+      console.error('Error details:', {
+        name: event.reason.name,
+        message: event.reason.message,
+        stack: event.reason.stack
+      });
+    }
+    
     // Prevent the default browser behavior
     event.preventDefault();
+  });
+  
+  // Add global error handler for regular errors
+  window.addEventListener('error', (event) => {
+    console.error('Global error:', event.error);
   });
 }
