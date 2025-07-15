@@ -348,12 +348,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/strategy/start', async (req, res) => {
     try {
       const { strategyId } = req.body;
+      
+      // Ensure demo user exists
+      let user = await storage.getUser(1);
+      if (!user) {
+        // Try to find existing user by username first
+        user = await storage.getUserByUsername('demo_user');
+        if (!user) {
+          user = await storage.createUser({
+            username: 'demo_user',
+            password: 'demo_password',
+            balance: 10000
+          });
+        }
+      }
+      
       let strategy = await storage.getStrategy(strategyId || 1);
       
       // Create default strategy if none exists
       if (!strategy) {
         strategy = await storage.createStrategy({
-          userId: 1,
+          userId: user.id,
           name: 'Default SMC Strategy',
           riskPercentage: 2,
           stopLoss: 50,

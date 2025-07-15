@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { 
   BarChart3, 
   Bot, 
@@ -11,17 +12,18 @@ import {
 import { User } from '@shared/schema';
 
 export default function Sidebar() {
+  const [location, setLocation] = useLocation();
+  
   const { data: user } = useQuery<User>({
     queryKey: ['/api/user'],
   });
 
   const navigationItems = [
-    { icon: BarChart3, label: 'Dashboard', href: '#', active: true },
-    { icon: Bot, label: 'Strategy Builder', href: '#' },
-    { icon: History, label: 'Backtesting', href: '#' },
-    { icon: ArrowLeftRight, label: 'Live Trading', href: '#' },
-    { icon: TrendingUp, label: 'Analytics', href: '#' },
-    { icon: Settings, label: 'Settings', href: '#' },
+    { icon: BarChart3, label: 'Dashboard', href: '/' },
+    { icon: Bot, label: 'Strategy Builder', href: '/strategy-builder' },
+    { icon: History, label: 'Backtesting', href: '/backtesting' },
+    { icon: ArrowLeftRight, label: 'Live Trading', href: '/live-trading' },
+    { icon: TrendingUp, label: 'Analytics', href: '/analytics' },
   ];
 
   return (
@@ -42,18 +44,18 @@ export default function Sidebar() {
       {/* Navigation Menu */}
       <nav className="flex-1 p-4 space-y-2">
         {navigationItems.map((item) => (
-          <a
+          <button
             key={item.label}
-            href={item.href}
-            className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-              item.active
+            onClick={() => setLocation(item.href)}
+            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+              location === item.href
                 ? 'bg-primary/20 text-primary border border-primary/30'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             }`}
           >
             <item.icon className="w-5 h-5" />
             <span className="font-medium">{item.label}</span>
-          </a>
+          </button>
         ))}
       </nav>
 
@@ -65,7 +67,7 @@ export default function Sidebar() {
             <span className="text-xs profit-text">Live</span>
           </div>
           <div className="text-lg trading-mono font-semibold text-foreground">
-            ${user?.accountBalance?.toLocaleString() || '10,000.00'}
+            ${user?.balance?.toLocaleString() || '10,000.00'}
           </div>
           <div className="text-xs profit-text">+$247.33 (2.5%)</div>
         </div>
