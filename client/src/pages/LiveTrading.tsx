@@ -66,10 +66,11 @@ export default function LiveTrading() {
 
     subscribe('trade_closed', (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trades/active'] });
-      const pnlEmoji = data.trade.pnl >= 0 ? '💰' : '📉';
+      const pnl = data.trade.pnl ?? 0;
+      const pnlEmoji = pnl >= 0 ? '💰' : '📉';
       toast({
         title: `${pnlEmoji} Trade Closed`,
-        description: `P&L: $${data.trade.pnl?.toFixed(2)}`,
+        description: `P&L: $${pnl.toFixed(2)}`,
       });
     });
   }, [subscribe, queryClient, toast]);
@@ -304,7 +305,7 @@ export default function LiveTrading() {
                           </div>
                         )}
                         
-                        {trade.pnl !== undefined && (
+                        {trade.pnl !== undefined && trade.pnl !== null && (
                           <div className="flex justify-between text-sm pt-1 border-t border-border">
                             <span className="text-muted-foreground">P&L:</span>
                             <span className={`font-mono font-bold ${trade.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -321,38 +322,33 @@ export default function LiveTrading() {
           </Card>
         </div>
 
-        {/* Recent Signals */}
+        {/* Recent Signals - Compact Layout */}
         <Card className="trading-card">
-          <CardHeader>
-            <CardTitle>Recent SMC Signals</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">SMC Signals</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {signals?.slice(0, 5).map((signal) => (
-                <div key={signal.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Badge className="trading-pattern-badge">
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+              {signals?.slice(0, 6).map((signal) => (
+                <div key={signal.id} className="flex items-center justify-between p-2 bg-muted/20 rounded border border-border/50 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center space-x-2 min-w-0 flex-1">
+                    <Badge variant="outline" className="text-xs px-1.5 py-0.5 font-mono">
                       {signal.pattern}
                     </Badge>
-                    <div>
-                      <p className="font-medium">{signal.pair}</p>
-                      <p className="text-sm text-muted-foreground">{signal.description}</p>
-                    </div>
+                    <span className="font-medium text-sm">{signal.pair}</span>
+                    <Badge className={`text-xs px-1.5 py-0.5 ${signal.direction === 'BULLISH' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {signal.direction === 'BULLISH' ? '↗' : '↙'}
+                    </Badge>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-right text-xs">
                     <p className="font-mono font-medium">{signal.price.toFixed(5)}</p>
-                    <div className="flex items-center space-x-2">
-                      <Badge className={signal.direction === 'BULLISH' ? 'status-indicator buy' : 'status-indicator sell'}>
-                        {signal.direction}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {(signal.confidence * 100).toFixed(0)}%
-                      </span>
-                    </div>
+                    <span className="text-muted-foreground">{(signal.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
-              ))}
+              )) || (
+                <p className="text-center text-muted-foreground py-4 text-sm">No signals detected</p>
+              )}
             </div>
           </CardContent>
         </Card>

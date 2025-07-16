@@ -145,7 +145,7 @@ export function AlertNotifications() {
                                 variant={alert.pnl > 0 ? "default" : "destructive"}
                                 className="text-xs"
                               >
-                                {alert.pnl > 0 ? '+' : ''}${alert.pnl.toFixed(2)}
+                                {alert.pnl > 0 ? '+' : ''}${(alert.pnl ?? 0).toFixed(2)}
                               </Badge>
                             )}
                           </div>

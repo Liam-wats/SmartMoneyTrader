@@ -258,7 +258,7 @@ export default function ActiveTrades() {
                       {trade.entryPrice.toFixed(4)}
                     </td>
                     <td className="p-3 trading-mono">
-                      {trade.pnl ? (
+                      {trade.pnl !== null && trade.pnl !== undefined ? (
                         <span className={trade.pnl > 0 ? 'profit-text' : 'loss-text'}>
                           {trade.pnl > 0 ? '+' : ''}${trade.pnl.toFixed(2)}
                         </span>

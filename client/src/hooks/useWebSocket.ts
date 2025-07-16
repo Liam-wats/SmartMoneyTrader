@@ -8,10 +8,13 @@ export function useWebSocket(url: string) {
   const messageHandlers = useRef<Map<string, (data: any) => void>>(new Map());
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    let ws: WebSocket;
     
-    const ws = new WebSocket(wsUrl);
+    try {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      
+      ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
       setIsConnected(true);
@@ -42,8 +45,16 @@ export function useWebSocket(url: string) {
       }
     };
     
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      setIsConnected(false);
+      return;
+    }
+    
     return () => {
-      ws.close();
+      if (ws && ws.readyState !== WebSocket.CLOSED) {
+        ws.close();
+      }
     };
   }, [url]);
 
