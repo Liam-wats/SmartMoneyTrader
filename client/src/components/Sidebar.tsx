@@ -6,6 +6,7 @@ import {
   History, 
   ArrowLeftRight, 
   TrendingUp, 
+  Target,
   Settings,
   Activity
 } from 'lucide-react';
@@ -23,6 +24,7 @@ export default function Sidebar() {
     { icon: Bot, label: 'Strategy Builder', href: '/strategy-builder' },
     { icon: History, label: 'Backtesting', href: '/backtesting' },
     { icon: ArrowLeftRight, label: 'Live Trading', href: '/live-trading' },
+    { icon: Target, label: 'Top-Down Analysis', href: '/top-down-analysis' },
     { icon: TrendingUp, label: 'Analytics', href: '/analytics' },
   ];
 

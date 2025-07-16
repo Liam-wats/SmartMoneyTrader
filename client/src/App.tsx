@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/Dashboard";
 import Backtesting from "@/pages/Backtesting";
 import LiveTrading from "@/pages/LiveTrading";
+import TopDownAnalysis from "@/pages/TopDownAnalysis";
 import StrategyBuilder from "@/pages/StrategyBuilder";
 import Analytics from "@/pages/Analytics";
 import NotFound from "@/pages/not-found";
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/backtesting" component={Backtesting} />
       <Route path="/live-trading" component={LiveTrading} />
+      <Route path="/top-down-analysis" component={TopDownAnalysis} />
       <Route path="/strategy-builder" component={StrategyBuilder} />
       <Route path="/analytics" component={Analytics} />
       <Route component={NotFound} />

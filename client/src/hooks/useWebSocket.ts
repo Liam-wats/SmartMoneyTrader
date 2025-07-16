@@ -15,45 +15,57 @@ export function useWebSocket(url: string) {
       const wsUrl = `${protocol}//${window.location.host}/ws`;
       
       ws = new WebSocket(wsUrl);
-    
-    ws.onopen = () => {
-      setIsConnected(true);
-      setSocket(ws);
-    };
-    
-    ws.onclose = () => {
-      setIsConnected(false);
-      setSocket(null);
-    };
-    
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setIsConnected(false);
-    };
-    
-    ws.onmessage = (event) => {
-      try {
-        const message: WebSocketMessage = JSON.parse(event.data);
-        setLastMessage(message);
-        
-        const handler = messageHandlers.current.get(message.type);
-        if (handler) {
-          handler(message);
+      
+      ws.onopen = () => {
+        setIsConnected(true);
+        setSocket(ws);
+      };
+      
+      ws.onclose = (event) => {
+        setIsConnected(false);
+        setSocket(null);
+        if (event.code !== 1000) {
+          console.warn('WebSocket closed unexpectedly:', event.code, event.reason);
         }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-    
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setIsConnected(false);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          if (!event.data || typeof event.data !== 'string') {
+            console.warn('Invalid WebSocket message data:', event.data);
+            return;
+          }
+          
+          const message: WebSocketMessage = JSON.parse(event.data);
+          setLastMessage(message);
+          
+          const handler = messageHandlers.current.get(message.type);
+          if (handler) {
+            handler(message);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error, 'Data:', event.data);
+        }
+      };
+      
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
+      console.error('Error creating WebSocket connection:', error);
       setIsConnected(false);
       return;
     }
     
     return () => {
-      if (ws && ws.readyState !== WebSocket.CLOSED) {
-        ws.close();
+      try {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+          ws.close(1000, 'Component unmounting');
+        }
+      } catch (error) {
+        console.error('Error closing WebSocket:', error);
       }
     };
   }, [url]);

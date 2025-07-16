@@ -1,77 +1,76 @@
 import { CandleData } from './marketData';
-import { SMCSignal } from '@shared/schema';
 
 export interface SMCPattern {
-  type: 'BOS' | 'CHoCH' | 'FVG' | 'OB' | 'LS';
+  type: 'BOS' | 'FVG' | 'OB' | 'LS' | 'CHoCH';
   direction: 'BULLISH' | 'BEARISH';
   price: number;
   confidence: number;
   description: string;
+  pattern: string;
+  timestamp: number;
 }
 
 export class SMCDetectionService {
-  private readonly lookbackPeriod = 20;
-  private readonly minConfidence = 0.7;
-
-  detectPatterns(data: CandleData[], pair: string, timeframe: string): SMCPattern[] {
-    if (data.length < this.lookbackPeriod) return [];
-
+  detectPatterns(data: CandleData[], pair?: string, timeframe?: string): SMCPattern[] {
     const patterns: SMCPattern[] = [];
     
-    // Sort data by timestamp
-    const sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
+    if (data.length < 20) return patterns;
     
     // Detect Break of Structure (BOS)
-    const bosPatterns = this.detectBOS(sortedData);
-    patterns.push(...bosPatterns);
+    patterns.push(...this.detectBOS(data));
     
     // Detect Fair Value Gaps (FVG)
-    const fvgPatterns = this.detectFVG(sortedData);
-    patterns.push(...fvgPatterns);
+    patterns.push(...this.detectFVG(data));
     
     // Detect Order Blocks (OB)
-    const obPatterns = this.detectOrderBlocks(sortedData);
-    patterns.push(...obPatterns);
+    patterns.push(...this.detectOrderBlocks(data));
     
     // Detect Liquidity Sweeps (LS)
-    const lsPatterns = this.detectLiquiditySweeps(sortedData);
-    patterns.push(...lsPatterns);
+    patterns.push(...this.detectLiquiditySweeps(data));
     
-    return patterns.filter(p => p.confidence >= this.minConfidence);
+    // Detect Change of Character (CHoCH)
+    patterns.push(...this.detectCHoCH(data));
+    
+    return patterns.sort((a, b) => b.confidence - a.confidence);
   }
 
   private detectBOS(data: CandleData[]): SMCPattern[] {
     const patterns: SMCPattern[] = [];
+    const lookback = 10;
     
-    for (let i = 10; i < data.length - 2; i++) {
+    for (let i = lookback; i < data.length - 1; i++) {
       const currentCandle = data[i];
-      const previousCandles = data.slice(i - 10, i);
+      const prevCandles = data.slice(i - lookback, i);
       
-      // Find recent highs and lows
-      const recentHigh = Math.max(...previousCandles.map(c => c.high));
-      const recentLow = Math.min(...previousCandles.map(c => c.low));
+      // Find recent high and low
+      const recentHigh = Math.max(...prevCandles.map(c => c.high));
+      const recentLow = Math.min(...prevCandles.map(c => c.low));
       
-      // Bullish BOS - price breaks above recent high
-      if (currentCandle.close > recentHigh && currentCandle.high > recentHigh) {
+      // Bullish BOS - break above recent high
+      if (currentCandle.close > recentHigh) {
         const confidence = this.calculateBOSConfidence(data, i, 'BULLISH');
         patterns.push({
           type: 'BOS',
           direction: 'BULLISH',
           price: currentCandle.close,
           confidence,
-          description: `Bullish structure break at ${currentCandle.close.toFixed(4)}`
+          description: `Bullish Break of Structure at ${currentCandle.close.toFixed(5)}`,
+          pattern: 'BOS',
+          timestamp: currentCandle.timestamp
         });
       }
       
-      // Bearish BOS - price breaks below recent low
-      if (currentCandle.close < recentLow && currentCandle.low < recentLow) {
+      // Bearish BOS - break below recent low
+      if (currentCandle.close < recentLow) {
         const confidence = this.calculateBOSConfidence(data, i, 'BEARISH');
         patterns.push({
           type: 'BOS',
           direction: 'BEARISH',
           price: currentCandle.close,
           confidence,
-          description: `Bearish structure break at ${currentCandle.close.toFixed(4)}`
+          description: `Bearish Break of Structure at ${currentCandle.close.toFixed(5)}`,
+          pattern: 'BOS',
+          timestamp: currentCandle.timestamp
         });
       }
     }
@@ -82,36 +81,42 @@ export class SMCDetectionService {
   private detectFVG(data: CandleData[]): SMCPattern[] {
     const patterns: SMCPattern[] = [];
     
-    for (let i = 1; i < data.length - 1; i++) {
-      const prev = data[i - 1];
-      const current = data[i];
-      const next = data[i + 1];
+    for (let i = 2; i < data.length; i++) {
+      const candle1 = data[i - 2];
+      const candle2 = data[i - 1];
+      const candle3 = data[i];
       
-      // Bullish FVG - gap between prev high and next low
-      if (prev.high < next.low && current.close > current.open) {
-        const gapSize = next.low - prev.high;
-        const confidence = this.calculateFVGConfidence(gapSize, current);
+      // Bullish FVG - gap between candle1 high and candle3 low
+      if (candle1.high < candle3.low && candle2.close > candle2.open) {
+        const gapSize = candle3.low - candle1.high;
+        const avgPrice = (candle1.high + candle3.low) / 2;
+        const confidence = this.calculateFVGConfidence(gapSize, avgPrice);
         
         patterns.push({
           type: 'FVG',
           direction: 'BULLISH',
-          price: (prev.high + next.low) / 2,
+          price: avgPrice,
           confidence,
-          description: `Bullish FVG at ${prev.high.toFixed(4)}-${next.low.toFixed(4)}`
+          description: `Bullish Fair Value Gap: ${candle1.high.toFixed(5)} - ${candle3.low.toFixed(5)}`,
+          pattern: 'FVG',
+          timestamp: candle3.timestamp
         });
       }
       
-      // Bearish FVG - gap between prev low and next high
-      if (prev.low > next.high && current.close < current.open) {
-        const gapSize = prev.low - next.high;
-        const confidence = this.calculateFVGConfidence(gapSize, current);
+      // Bearish FVG - gap between candle1 low and candle3 high
+      if (candle1.low > candle3.high && candle2.close < candle2.open) {
+        const gapSize = candle1.low - candle3.high;
+        const avgPrice = (candle1.low + candle3.high) / 2;
+        const confidence = this.calculateFVGConfidence(gapSize, avgPrice);
         
         patterns.push({
           type: 'FVG',
           direction: 'BEARISH',
-          price: (prev.low + next.high) / 2,
+          price: avgPrice,
           confidence,
-          description: `Bearish FVG at ${next.high.toFixed(4)}-${prev.low.toFixed(4)}`
+          description: `Bearish Fair Value Gap: ${candle3.high.toFixed(5)} - ${candle1.low.toFixed(5)}`,
+          pattern: 'FVG',
+          timestamp: candle3.timestamp
         });
       }
     }
@@ -123,38 +128,41 @@ export class SMCDetectionService {
     const patterns: SMCPattern[] = [];
     
     for (let i = 5; i < data.length - 5; i++) {
-      const candle = data[i];
-      const bodySize = Math.abs(candle.close - candle.open);
-      const candleRange = candle.high - candle.low;
+      const currentCandle = data[i];
+      const nextCandles = data.slice(i + 1, i + 6);
       
-      // Strong bullish candle followed by consolidation
-      if (candle.close > candle.open && bodySize > candleRange * 0.7) {
-        const nextCandles = data.slice(i + 1, i + 6);
-        const isConsolidation = this.isConsolidation(nextCandles);
+      // Bullish Order Block - strong down candle followed by upward movement
+      if (currentCandle.close < currentCandle.open) {
+        const hasUpwardMovement = nextCandles.some(c => c.close > currentCandle.high);
         
-        if (isConsolidation) {
+        if (hasUpwardMovement) {
+          const confidence = this.calculateOrderBlockConfidence(data, i, 'BULLISH');
           patterns.push({
             type: 'OB',
             direction: 'BULLISH',
-            price: candle.open,
-            confidence: 0.8,
-            description: `Bullish Order Block at ${candle.open.toFixed(4)}-${candle.close.toFixed(4)}`
+            price: (currentCandle.open + currentCandle.close) / 2,
+            confidence,
+            description: `Bullish Order Block at ${currentCandle.low.toFixed(5)} - ${currentCandle.high.toFixed(5)}`,
+            pattern: 'OB',
+            timestamp: currentCandle.timestamp
           });
         }
       }
       
-      // Strong bearish candle followed by consolidation
-      if (candle.close < candle.open && bodySize > candleRange * 0.7) {
-        const nextCandles = data.slice(i + 1, i + 6);
-        const isConsolidation = this.isConsolidation(nextCandles);
+      // Bearish Order Block - strong up candle followed by downward movement
+      if (currentCandle.close > currentCandle.open) {
+        const hasDownwardMovement = nextCandles.some(c => c.close < currentCandle.low);
         
-        if (isConsolidation) {
+        if (hasDownwardMovement) {
+          const confidence = this.calculateOrderBlockConfidence(data, i, 'BEARISH');
           patterns.push({
             type: 'OB',
             direction: 'BEARISH',
-            price: candle.open,
-            confidence: 0.8,
-            description: `Bearish Order Block at ${candle.close.toFixed(4)}-${candle.open.toFixed(4)}`
+            price: (currentCandle.open + currentCandle.close) / 2,
+            confidence,
+            description: `Bearish Order Block at ${currentCandle.low.toFixed(5)} - ${currentCandle.high.toFixed(5)}`,
+            pattern: 'OB',
+            timestamp: currentCandle.timestamp
           });
         }
       }
@@ -165,34 +173,76 @@ export class SMCDetectionService {
 
   private detectLiquiditySweeps(data: CandleData[]): SMCPattern[] {
     const patterns: SMCPattern[] = [];
+    const lookback = 20;
     
-    for (let i = 20; i < data.length - 2; i++) {
+    for (let i = lookback; i < data.length; i++) {
       const currentCandle = data[i];
-      const previousCandles = data.slice(i - 20, i);
+      const prevCandles = data.slice(i - lookback, i);
       
-      // Find significant highs and lows
-      const significantHigh = Math.max(...previousCandles.map(c => c.high));
-      const significantLow = Math.min(...previousCandles.map(c => c.low));
+      // Find equal highs/lows (liquidity zones)
+      const highs = prevCandles.map(c => c.high);
+      const lows = prevCandles.map(c => c.low);
       
-      // Liquidity sweep above high (false breakout)
-      if (currentCandle.high > significantHigh && currentCandle.close < significantHigh) {
-        patterns.push({
-          type: 'LS',
-          direction: 'BEARISH',
-          price: currentCandle.high,
-          confidence: 0.75,
-          description: `Liquidity sweep above ${significantHigh.toFixed(4)}`
-        });
+      const equalHighs = this.findEqualLevels(highs);
+      const equalLows = this.findEqualLevels(lows);
+      
+      // Check for liquidity sweep above equal highs
+      for (const level of equalHighs) {
+        if (currentCandle.high > level && currentCandle.close < level) {
+          const confidence = this.calculateLiquiditySweepConfidence(data, i, level, 'BEARISH');
+          patterns.push({
+            type: 'LS',
+            direction: 'BEARISH',
+            price: level,
+            confidence,
+            description: `Liquidity Sweep above ${level.toFixed(5)}`,
+            pattern: 'LS',
+            timestamp: currentCandle.timestamp
+          });
+        }
       }
       
-      // Liquidity sweep below low (false breakdown)
-      if (currentCandle.low < significantLow && currentCandle.close > significantLow) {
+      // Check for liquidity sweep below equal lows
+      for (const level of equalLows) {
+        if (currentCandle.low < level && currentCandle.close > level) {
+          const confidence = this.calculateLiquiditySweepConfidence(data, i, level, 'BULLISH');
+          patterns.push({
+            type: 'LS',
+            direction: 'BULLISH',
+            price: level,
+            confidence,
+            description: `Liquidity Sweep below ${level.toFixed(5)}`,
+            pattern: 'LS',
+            timestamp: currentCandle.timestamp
+          });
+        }
+      }
+    }
+    
+    return patterns;
+  }
+
+  private detectCHoCH(data: CandleData[]): SMCPattern[] {
+    const patterns: SMCPattern[] = [];
+    const lookback = 15;
+    
+    for (let i = lookback; i < data.length; i++) {
+      const recentData = data.slice(i - lookback, i + 1);
+      const trend = this.identifyTrend(recentData);
+      const previousTrend = this.identifyTrend(data.slice(i - lookback * 2, i - lookback + 1));
+      
+      if (trend !== previousTrend && trend !== 'SIDEWAYS' && previousTrend !== 'SIDEWAYS') {
+        const currentCandle = data[i];
+        const confidence = this.calculateCHoCHConfidence(recentData);
+        
         patterns.push({
-          type: 'LS',
-          direction: 'BULLISH',
-          price: currentCandle.low,
-          confidence: 0.75,
-          description: `Liquidity sweep below ${significantLow.toFixed(4)}`
+          type: 'CHoCH',
+          direction: trend as 'BULLISH' | 'BEARISH',
+          price: currentCandle.close,
+          confidence,
+          description: `Change of Character: ${previousTrend} to ${trend}`,
+          pattern: 'CHoCH',
+          timestamp: currentCandle.timestamp
         });
       }
     }
@@ -200,53 +250,122 @@ export class SMCDetectionService {
     return patterns;
   }
 
+  // Helper methods for confidence calculations
   private calculateBOSConfidence(data: CandleData[], index: number, direction: 'BULLISH' | 'BEARISH'): number {
     const candle = data[index];
-    const volume = candle.volume;
+    const volume = candle.volume || 1;
     const bodySize = Math.abs(candle.close - candle.open);
-    const candleRange = candle.high - candle.low;
+    const range = candle.high - candle.low;
     
     let confidence = 0.5;
-    
-    // Volume confirmation
-    if (volume > 0) confidence += 0.2;
     
     // Strong body relative to range
-    if (bodySize > candleRange * 0.6) confidence += 0.15;
+    if (bodySize / range > 0.6) confidence += 0.2;
     
-    // Direction confirmation
-    if (direction === 'BULLISH' && candle.close > candle.open) confidence += 0.1;
-    if (direction === 'BEARISH' && candle.close < candle.open) confidence += 0.1;
+    // Volume confirmation (mock calculation)
+    const avgVolume = data.slice(index - 10, index).reduce((sum, c) => sum + (c.volume || 1), 0) / 10;
+    if (volume > avgVolume * 1.5) confidence += 0.15;
     
-    return Math.min(confidence, 1.0);
+    // Momentum continuation
+    const nextCandles = data.slice(index + 1, index + 4);
+    const continuation = nextCandles.filter(c => 
+      direction === 'BULLISH' ? c.close > c.open : c.close < c.open
+    ).length;
+    
+    confidence += (continuation / 3) * 0.2;
+    
+    return Math.min(0.95, confidence);
   }
 
-  private calculateFVGConfidence(gapSize: number, candle: CandleData): number {
-    const candleRange = candle.high - candle.low;
-    const gapRatio = gapSize / candleRange;
+  private calculateFVGConfidence(gapSize: number, price: number): number {
+    const gapPercentage = (gapSize / price) * 100;
+    let confidence = 0.4;
+    
+    // Larger gaps are more significant
+    if (gapPercentage > 0.05) confidence += 0.2;
+    if (gapPercentage > 0.1) confidence += 0.15;
+    if (gapPercentage > 0.2) confidence += 0.1;
+    
+    return Math.min(0.9, confidence);
+  }
+
+  private calculateOrderBlockConfidence(data: CandleData[], index: number, direction: 'BULLISH' | 'BEARISH'): number {
+    const candle = data[index];
+    const bodySize = Math.abs(candle.close - candle.open);
+    const range = candle.high - candle.low;
+    
+    let confidence = 0.4;
+    
+    // Strong rejection candle
+    if (bodySize / range > 0.7) confidence += 0.3;
+    
+    // Position in recent range
+    const recentData = data.slice(Math.max(0, index - 20), index);
+    const recentHigh = Math.max(...recentData.map(c => c.high));
+    const recentLow = Math.min(...recentData.map(c => c.low));
+    
+    if (direction === 'BULLISH' && candle.low <= recentLow + (recentHigh - recentLow) * 0.2) {
+      confidence += 0.15;
+    } else if (direction === 'BEARISH' && candle.high >= recentHigh - (recentHigh - recentLow) * 0.2) {
+      confidence += 0.15;
+    }
+    
+    return Math.min(0.9, confidence);
+  }
+
+  private calculateLiquiditySweepConfidence(data: CandleData[], index: number, level: number, direction: 'BULLISH' | 'BEARISH'): number {
+    const candle = data[index];
+    const wickSize = direction === 'BULLISH' 
+      ? Math.abs(candle.low - level)
+      : Math.abs(candle.high - level);
+    const bodySize = Math.abs(candle.close - candle.open);
     
     let confidence = 0.5;
     
-    // Larger gaps are more significant
-    if (gapRatio > 0.3) confidence += 0.2;
-    if (gapRatio > 0.5) confidence += 0.1;
+    // Strong rejection (long wick, small body)
+    if (wickSize > bodySize * 2) confidence += 0.2;
     
-    // Strong body confirmation
-    const bodySize = Math.abs(candle.close - candle.open);
-    if (bodySize > candleRange * 0.7) confidence += 0.15;
+    // Quick reversal
+    const nextCandle = data[index + 1];
+    if (nextCandle) {
+      const reversal = direction === 'BULLISH' 
+        ? nextCandle.close > candle.close
+        : nextCandle.close < candle.close;
+      if (reversal) confidence += 0.15;
+    }
     
-    return Math.min(confidence, 1.0);
+    return Math.min(0.9, confidence);
   }
 
-  private isConsolidation(candles: CandleData[]): boolean {
-    if (candles.length < 3) return false;
+  private calculateCHoCHConfidence(data: CandleData[]): number {
+    // Simple confidence based on trend strength
+    return 0.6 + Math.random() * 0.2; // Mock implementation
+  }
+
+  private findEqualLevels(values: number[]): number[] {
+    const levels: number[] = [];
+    const tolerance = 0.0001; // 1 pip tolerance for forex
     
-    const highs = candles.map(c => c.high);
-    const lows = candles.map(c => c.low);
-    const range = Math.max(...highs) - Math.min(...lows);
-    const avgRange = candles.reduce((sum, c) => sum + (c.high - c.low), 0) / candles.length;
+    for (let i = 0; i < values.length; i++) {
+      const matches = values.filter(v => Math.abs(v - values[i]) <= tolerance);
+      if (matches.length >= 2 && !levels.some(l => Math.abs(l - values[i]) <= tolerance)) {
+        levels.push(values[i]);
+      }
+    }
     
-    return range < avgRange * 2;
+    return levels;
+  }
+
+  private identifyTrend(data: CandleData[]): 'BULLISH' | 'BEARISH' | 'SIDEWAYS' {
+    if (data.length < 5) return 'SIDEWAYS';
+    
+    const start = data[0].close;
+    const end = data[data.length - 1].close;
+    const change = (end - start) / start;
+    
+    if (change > 0.002) return 'BULLISH';
+    if (change < -0.002) return 'BEARISH';
+    return 'SIDEWAYS';
   }
 }
 
