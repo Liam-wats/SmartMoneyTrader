@@ -1,0 +1,1 @@
+# SMC Trading Platform Backend
