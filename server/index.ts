@@ -1,70 +1,41 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+// This file has been temporarily replaced with Python server
+// To run the Python stack: python3 python_server.py
+// To revert to Node.js: git checkout server/index.ts
 
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+import { spawn } from "child_process";
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+console.log("🔄 Switching to Python Stack...");
+console.log("🐍 Starting FastAPI + Python Frontend");
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
+// Start the Python server
+const pythonProcess = spawn("python3", ["python_server.py"], {
+  stdio: "inherit",
+  cwd: process.cwd()
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+pythonProcess.on("error", (error) => {
+  console.error("❌ Failed to start Python server:", error);
+  process.exit(1);
+});
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+pythonProcess.on("close", (code) => {
+  console.log(`🛑 Python server exited with code ${code}`);
+  process.exit(code || 0);
+});
 
-    res.status(status).json({ message });
-    throw err;
-  });
+// Handle graceful shutdown
+process.on("SIGINT", () => {
+  console.log("🛑 Shutting down...");
+  pythonProcess.kill("SIGINT");
+});
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+process.on("SIGTERM", () => {
+  console.log("🛑 Shutting down...");
+  pythonProcess.kill("SIGTERM");
+});
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+// Original Node.js code preserved below (commented out)
+/*
+Original Express server code has been temporarily replaced with Python server.
+To restore Node.js functionality, revert this file or run the old-dev script.
+*/
