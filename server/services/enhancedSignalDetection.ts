@@ -9,6 +9,8 @@ export class EnhancedSignalDetectionService {
   private telegramService: TelegramNotificationService;
   private lastSignalTime: Map<string, number> = new Map();
   private isMonitoring: boolean = false;
+  private signalHistory: TradingSignal[] = [];
+  private monitoringInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.technicalAnalysis = new TechnicalAnalysisService();
@@ -88,6 +90,14 @@ export class EnhancedSignalDetectionService {
     }
 
     this.lastSignalTime.set(signalKey, now);
+    
+    // Store signal in history
+    this.signalHistory.push(signal);
+    
+    // Keep only last 100 signals
+    if (this.signalHistory.length > 100) {
+      this.signalHistory = this.signalHistory.slice(-100);
+    }
 
     // Format message for Telegram
     const message = this.technicalAnalysis.formatSignalForTelegram(signal);
@@ -117,7 +127,7 @@ export class EnhancedSignalDetectionService {
     this.processAndNotifySignals();
 
     // Set up interval
-    setInterval(async () => {
+    this.monitoringInterval = setInterval(async () => {
       if (this.isMonitoring) {
         await this.processAndNotifySignals();
       }
@@ -126,6 +136,10 @@ export class EnhancedSignalDetectionService {
 
   stopMonitoring(): void {
     this.isMonitoring = false;
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
     console.log('Signal monitoring stopped');
   }
 
@@ -146,6 +160,22 @@ export class EnhancedSignalDetectionService {
     }));
 
     return history.sort((a, b) => new Date(b.lastSignalTime).getTime() - new Date(a.lastSignalTime).getTime());
+  }
+
+  async getActiveSignals(): Promise<TradingSignal[]> {
+    // Return the most recent signals from the last 24 hours
+    const signals = this.signalHistory.filter(signal => 
+      Date.now() - signal.timestamp < 24 * 60 * 60 * 1000
+    );
+    return signals.slice(-10); // Return last 10 signals
+  }
+
+  async getSignalHistory(): Promise<TradingSignal[]> {
+    return [...this.signalHistory].reverse(); // Return all signals in reverse chronological order
+  }
+
+  async getLatestSignals(limit: number = 10): Promise<TradingSignal[]> {
+    return this.signalHistory.slice(-limit).reverse();
   }
 }
 

@@ -44,29 +44,30 @@ export class TechnicalAnalysisService {
     const volumes = data.map(d => d.volume || 1000);
 
     try {
-      // RSI
-      const rsiValues = RSI.calculate({ values: closes, period: 14 });
-      const rsi = rsiValues[rsiValues.length - 1] || 50;
+      // RSI - ensure we have enough data
+      let rsi = 50;
+      if (closes.length >= 14) {
+        const rsiValues = RSI.calculate({ values: closes, period: 14 });
+        rsi = rsiValues[rsiValues.length - 1] || rsi;
+      }
 
-      // Moving Averages
-      const sma20Values = SMA.calculate({ values: closes, period: 20 });
-      const sma50Values = SMA.calculate({ values: closes, period: 50 });
-      const ema20Values = EMA.calculate({ values: closes, period: 20 });
-      const ema50Values = EMA.calculate({ values: closes, period: 50 });
+      // Moving Averages - ensure we have enough data
+      const sma20Values = closes.length >= 20 ? SMA.calculate({ values: closes, period: 20 }) : [];
+      const sma50Values = closes.length >= 50 ? SMA.calculate({ values: closes, period: 50 }) : [];
+      const ema20Values = closes.length >= 20 ? EMA.calculate({ values: closes, period: 20 }) : [];
+      const ema50Values = closes.length >= 50 ? EMA.calculate({ values: closes, period: 50 }) : [];
 
       const sma20 = sma20Values[sma20Values.length - 1] || closes[closes.length - 1];
       const sma50 = sma50Values[sma50Values.length - 1] || closes[closes.length - 1];
       const ema20 = ema20Values[ema20Values.length - 1] || closes[closes.length - 1];
       const ema50 = ema50Values[ema50Values.length - 1] || closes[closes.length - 1];
 
-      // Bollinger Bands
-      const bbInput = {
-        values: closes,
-        period: 20,
-        stdDev: 2
-      };
-      const bbValues = BollingerBands.calculate(bbInput);
-      const bb = bbValues[bbValues.length - 1] || { upper: closes[closes.length - 1] * 1.02, middle: closes[closes.length - 1], lower: closes[closes.length - 1] * 0.98 };
+      // Bollinger Bands - ensure we have enough data
+      let bb = { upper: closes[closes.length - 1] * 1.02, middle: closes[closes.length - 1], lower: closes[closes.length - 1] * 0.98 };
+      if (closes.length >= 20) {
+        const bbValues = BollingerBands.calculate({ values: closes, period: 20, stdDev: 2 });
+        bb = bbValues[bbValues.length - 1] || bb;
+      }
 
       // MACD - ensure we have enough data
       let macd = { MACD: 0, signal: 0, histogram: 0 };
@@ -82,9 +83,12 @@ export class TechnicalAnalysisService {
         stoch = stochValues[stochValues.length - 1] || stoch;
       }
 
-      // ATR
-      const atrValues = ATR.calculate({ high: highs, low: lows, close: closes, period: 14 });
-      const atr = atrValues[atrValues.length - 1] || 0.001;
+      // ATR - ensure we have enough data
+      let atr = 0.001;
+      if (highs.length >= 14 && lows.length >= 14 && closes.length >= 14) {
+        const atrValues = ATR.calculate({ high: highs, low: lows, close: closes, period: 14 });
+        atr = atrValues[atrValues.length - 1] || atr;
+      }
 
       return {
         rsi,

@@ -143,8 +143,8 @@ export default function TopDownAnalysis() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>Overall Recommendation</span>
-                    <Badge className={getRecommendationColor(analysisMutation.data.recommendation)}>
-                      {analysisMutation.data.recommendation.replace('_', ' ')}
+                    <Badge className={getRecommendationColor(analysisMutation.data?.recommendation || 'NEUTRAL')}>
+                      {(analysisMutation.data?.recommendation || 'NEUTRAL').replace('_', ' ')}
                     </Badge>
                   </CardTitle>
                 </CardHeader>

@@ -754,6 +754,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     enhancedSignalDetection.startMonitoring(15);
   }, 5000); // Start after 5 seconds to allow server to fully initialize
 
+  // Enhanced Signals API Routes
+  app.get('/api/enhanced-signals', async (req, res) => {
+    try {
+      const signals = await enhancedSignalDetection.getActiveSignals();
+      res.json(signals);
+    } catch (error) {
+      console.error('Error fetching enhanced signals:', error);
+      res.status(500).json({ error: 'Failed to fetch enhanced signals' });
+    }
+  });
+
+  app.get('/api/enhanced-signals/history', async (req, res) => {
+    try {
+      const history = await enhancedSignalDetection.getSignalHistory();
+      res.json(history);
+    } catch (error) {
+      console.error('Error fetching signal history:', error);
+      res.status(500).json({ error: 'Failed to fetch signal history' });
+    }
+  });
+
+  app.post('/api/enhanced-signals/analyze', async (req, res) => {
+    try {
+      const { pair, timeframe } = req.body;
+      if (!pair || !timeframe) {
+        return res.status(400).json({ error: 'Pair and timeframe are required' });
+      }
+      
+      const signal = await enhancedSignalDetection.analyzePair(pair, timeframe);
+      res.json({ signal, analyzed: true });
+    } catch (error) {
+      console.error('Error analyzing pair:', error);
+      res.status(500).json({ error: 'Failed to analyze pair' });
+    }
+  });
+
+  app.post('/api/enhanced-signals/start-monitoring', async (req, res) => {
+    try {
+      const { intervalMinutes = 15 } = req.body;
+      await enhancedSignalDetection.startMonitoring(intervalMinutes);
+      res.json({ 
+        success: true, 
+        message: `Monitoring started with ${intervalMinutes} minute intervals` 
+      });
+    } catch (error) {
+      console.error('Error starting monitoring:', error);
+      res.status(500).json({ error: 'Failed to start monitoring' });
+    }
+  });
+
+  app.post('/api/enhanced-signals/stop-monitoring', async (req, res) => {
+    try {
+      await enhancedSignalDetection.stopMonitoring();
+      res.json({ 
+        success: true, 
+        message: 'Monitoring stopped' 
+      });
+    } catch (error) {
+      console.error('Error stopping monitoring:', error);
+      res.status(500).json({ error: 'Failed to stop monitoring' });
+    }
+  });
+
+  // Telegram API Routes
+  app.post('/api/telegram/test', async (req, res) => {
+    try {
+      const connected = process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID;
+      if (connected) {
+        // Test the connection by sending a test message
+        const { telegramService } = await import('./services/telegramNotification');
+        await telegramService.sendMessage('🔧 Test message from SMC Trading Platform');
+      }
+      res.json({ 
+        connected: !!connected,
+        message: connected ? 'Test message sent successfully' : 'Telegram not configured'
+      });
+    } catch (error) {
+      console.error('Error testing Telegram connection:', error);
+      res.status(500).json({ error: 'Failed to test Telegram connection' });
+    }
+  });
+
   return httpServer;
 }
 
