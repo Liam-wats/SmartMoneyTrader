@@ -580,15 +580,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trades = await storage.getTrades(user.id);
       const completedTrades = trades.filter(t => t.status === 'CLOSED');
       
+      const totalTrades = completedTrades.length;
+      const winningTrades = completedTrades.filter(t => (t.pnl || 0) > 0).length;
+      const losingTrades = completedTrades.filter(t => (t.pnl || 0) < 0).length;
+      const totalProfit = completedTrades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const totalLoss = completedTrades.filter(t => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const totalPnL = completedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+      const profitFactor = totalLoss < 0 ? Math.abs(totalProfit / totalLoss) : totalProfit > 0 ? 999 : 0;
+      
       const analytics = {
-        totalTrades: completedTrades.length,
-        winningTrades: completedTrades.filter(t => (t.pnl || 0) > 0).length,
-        losingTrades: completedTrades.filter(t => (t.pnl || 0) < 0).length,
-        totalPnL: completedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0),
-        winRate: completedTrades.length > 0 ? 
-          completedTrades.filter(t => (t.pnl || 0) > 0).length / completedTrades.length : 0,
-        profitFactor: 0, // Calculate based on gross profit/loss
-        maxDrawdown: 0, // Calculate based on equity curve
+        totalTrades,
+        winningTrades,
+        losingTrades,
+        totalProfit,
+        totalLoss,
+        totalPnL,
+        winRate,
+        profitFactor,
+        averageWin: winningTrades > 0 ? totalProfit / winningTrades : 0,
+        averageLoss: losingTrades > 0 ? totalLoss / losingTrades : 0,
+        largestWin: completedTrades.reduce((max, t) => Math.max(max, t.pnl || 0), 0),
+        largestLoss: completedTrades.reduce((min, t) => Math.min(min, t.pnl || 0), 0),
+        consecutiveWins: 0,
+        consecutiveLosses: 0,
+        currentDrawdown: calculateCurrentDrawdown(completedTrades),
+        maxDrawdown: calculateMaxDrawdown(completedTrades),
+        sharpeRatio: calculateSharpeRatio(completedTrades),
+        riskRewardRatio: 0,
+        expectancy: totalTrades > 0 ? totalPnL / totalTrades : 0
       };
       
       res.json(analytics);
@@ -650,4 +670,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, 30000); // Every 30 seconds to reduce load
 
   return httpServer;
+}
+
+// Helper functions for analytics
+function calculateMaxDrawdown(trades: any[]): number {
+  if (trades.length === 0) return 0;
+  
+  let runningBalance = 10000;
+  let peakBalance = runningBalance;
+  let maxDrawdown = 0;
+  
+  for (const trade of trades) {
+    runningBalance += (trade.pnl || 0);
+    if (runningBalance > peakBalance) {
+      peakBalance = runningBalance;
+    }
+    
+    const drawdown = (peakBalance - runningBalance) / peakBalance * 100;
+    maxDrawdown = Math.max(maxDrawdown, drawdown);
+  }
+  
+  return maxDrawdown;
+}
+
+function calculateCurrentDrawdown(trades: any[]): number {
+  if (trades.length === 0) return 0;
+  
+  let runningBalance = 10000;
+  let peakBalance = runningBalance;
+  
+  for (const trade of trades) {
+    runningBalance += (trade.pnl || 0);
+    if (runningBalance > peakBalance) {
+      peakBalance = runningBalance;
+    }
+  }
+  
+  return peakBalance > 0 ? (peakBalance - runningBalance) / peakBalance * 100 : 0;
+}
+
+function calculateSharpeRatio(trades: any[]): number {
+  if (trades.length === 0) return 0;
+  
+  const returns = trades.map(t => (t.pnl || 0) / 10000); // Convert to percentage returns
+  const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+  
+  if (returns.length < 2) return 0;
+  
+  const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / (returns.length - 1);
+  const stdDev = Math.sqrt(variance);
+  
+  return stdDev > 0 ? avgReturn / stdDev : 0;
 }

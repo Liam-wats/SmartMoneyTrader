@@ -1,41 +1,85 @@
-// This file has been temporarily replaced with Python server
-// To run the Python stack: python3 python_server.py
-// To revert to Node.js: git checkout server/index.ts
+import express from "express";
+import { registerRoutes } from "./routes";
+import { setupVite } from "./vite";
+import { storage } from "./storage";
+import { marketDataService } from "./services/marketData";
+import { smcDetectionService } from "./services/smcDetection";
+import { alertService } from "./services/alertService";
 
-import { spawn } from "child_process";
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-console.log("🔄 Switching to Python Stack...");
-console.log("🐍 Starting FastAPI + Python Frontend");
+// Middleware
+app.use(express.json());
 
-// Start the Python server
-const pythonProcess = spawn("python3", ["python_server.py"], {
-  stdio: "inherit",
-  cwd: process.cwd()
+// CORS middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
 });
 
-pythonProcess.on("error", (error) => {
-  console.error("❌ Failed to start Python server:", error);
+// Initialize storage and services
+async function initializeServices() {
+  try {
+    // Initialize user and strategy if they don't exist
+    const user = await storage.getUserByUsername("demo_user");
+    if (!user) {
+      await storage.createUser({
+        username: "demo_user",
+        password: "demo_password",
+        accountBalance: 10000
+      });
+    }
+    
+    const strategies = await storage.getStrategies(1);
+    if (strategies.length === 0) {
+      await storage.createStrategy({
+        userId: 1,
+        name: "Default SMC Strategy",
+        isActive: false,
+        riskPercentage: 2,
+        stopLoss: 50,
+        takeProfit: 100,
+        bosConfirmation: true,
+        fvgTrading: true,
+        liquiditySweeps: false,
+        orderBlockFilter: true
+      });
+    }
+    
+    console.log("✅ Services initialized successfully");
+  } catch (error) {
+    console.error("❌ Error initializing services:", error);
+  }
+}
+
+// Register API routes and WebSocket
+registerRoutes(app).then(server => {
+  // Setup Vite dev server
+  setupVite(app, server);
+  
+  // Initialize services after server is ready
+  initializeServices();
+  
+  // Start server
+  server.listen(PORT, () => {
+    console.log(`[express] serving on port ${PORT}`);
+  });
+  
+  // Graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('🛑 Shutting down gracefully...');
+    server.close();
+    process.exit(0);
+  });
+}).catch(error => {
+  console.error("❌ Failed to start server:", error);
   process.exit(1);
 });
-
-pythonProcess.on("close", (code) => {
-  console.log(`🛑 Python server exited with code ${code}`);
-  process.exit(code || 0);
-});
-
-// Handle graceful shutdown
-process.on("SIGINT", () => {
-  console.log("🛑 Shutting down...");
-  pythonProcess.kill("SIGINT");
-});
-
-process.on("SIGTERM", () => {
-  console.log("🛑 Shutting down...");
-  pythonProcess.kill("SIGTERM");
-});
-
-// Original Node.js code preserved below (commented out)
-/*
-Original Express server code has been temporarily replaced with Python server.
-To restore Node.js functionality, revert this file or run the old-dev script.
-*/
