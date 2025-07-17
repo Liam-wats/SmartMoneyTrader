@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMC Algorithmic Trading Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .trading-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        .price-up { color: #10b981; }
+        .price-down { color: #ef4444; }
+        .signal-bullish { background: linear-gradient(135deg, #10b981, #059669); }
+        .signal-bearish { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .status-loading { color: #f59e0b; }
+        .status-success { color: #10b981; }
+        .status-error { color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="glass-card p-6 mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2">SMC Algorithmic Trading Platform</h1>
+                    <p class="text-blue-200">Professional-grade trading with institutional-level SMC analysis</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-2xl font-bold text-white" id="account-balance">$10,000.00</div>
+                    <div class="text-sm text-blue-200">Account Balance</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Market Data -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="trading-card p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-sm text-gray-600">EURUSD</div>
+                        <div class="text-2xl font-bold" id="price-eurusd">1.0850</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm price-up" id="change-eurusd">+0.0012</div>
+                        <div class="text-xs text-gray-500">+0.11%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="trading-card p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-sm text-gray-600">GBPUSD</div>
+                        <div class="text-2xl font-bold" id="price-gbpusd">1.2650</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm price-down" id="change-gbpusd">-0.0025</div>
+                        <div class="text-xs text-gray-500">-0.20%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="trading-card p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-sm text-gray-600">USDJPY</div>
+                        <div class="text-2xl font-bold" id="price-usdjpy">148.50</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm price-up" id="change-usdjpy">+0.35</div>
+                        <div class="text-xs text-gray-500">+0.24%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="trading-card p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-sm text-gray-600">AUDUSD</div>
+                        <div class="text-2xl font-bold" id="price-audusd">0.6750</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm price-down" id="change-audusd">-0.0018</div>
+                        <div class="text-xs text-gray-500">-0.27%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Trading Chart -->
+            <div class="lg:col-span-2">
+                <div class="trading-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-800">Trading Chart</h2>
+                        <div class="flex space-x-2">
+                            <select id="pair-selector" class="px-3 py-1 border rounded">
+                                <option value="EURUSD">EUR/USD</option>
+                                <option value="GBPUSD">GBP/USD</option>
+                                <option value="USDJPY">USD/JPY</option>
+                                <option value="AUDUSD">AUD/USD</option>
+                            </select>
+                            <select id="timeframe-selector" class="px-3 py-1 border rounded">
+                                <option value="1h">1H</option>
+                                <option value="4h">4H</option>
+                                <option value="1d">1D</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="trading-chart" style="height: 400px;"></div>
+                </div>
+            </div>
+
+            <!-- SMC Analysis Panel -->
+            <div class="space-y-6">
+                <!-- SMC Signals -->
+                <div class="trading-card p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">SMC Signals</h3>
+                    <div id="smc-signals" class="space-y-3">
+                        <!-- Signals will be populated here -->
+                    </div>
+                </div>
+
+                <!-- ML Predictions -->
+                <div class="trading-card p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">ML Predictions</h3>
+                    <div class="mb-4">
+                        <button id="run-ml-analysis" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition">
+                            Run ML Analysis
+                        </button>
+                    </div>
+                    <div id="ml-predictions" class="space-y-3">
+                        <!-- Predictions will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Active Trades -->
+                <div class="trading-card p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Active Trades</h3>
+                    <div id="active-trades" class="space-y-3">
+                        <div class="text-center text-gray-500 py-4">
+                            No active trades
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Analytics -->
+        <div class="mt-8">
+            <div class="trading-card p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Performance Analytics</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center p-4 bg-gray-50 rounded">
+                        <div class="text-2xl font-bold text-blue-600" id="total-trades">0</div>
+                        <div class="text-sm text-gray-600">Total Trades</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded">
+                        <div class="text-2xl font-bold text-green-600" id="win-rate">0%</div>
+                        <div class="text-sm text-gray-600">Win Rate</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded">
+                        <div class="text-2xl font-bold text-purple-600" id="profit-factor">0.00</div>
+                        <div class="text-sm text-gray-600">Profit Factor</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded">
+                        <div class="text-2xl font-bold text-red-600" id="max-drawdown">0%</div>
+                        <div class="text-sm text-gray-600">Max Drawdown</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Status -->
+        <div class="mt-8">
+            <div class="trading-card p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">ML Model Status</h2>
+                <div id="model-status" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <!-- Model status will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentPair = 'EURUSD';
+        let currentTimeframe = '1h';
+        let websocket = null;
+        let chartData = [];
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            try {
+                // Connect WebSocket
+                connectWebSocket();
+                
+                // Load initial data
+                await loadMarketData();
+                await loadSMCSignals();
+                await loadPerformanceAnalytics();
+                await loadModelStatus();
+                
+                // Set up event listeners
+                setupEventListeners();
+                
+                // Start periodic updates
+                startPeriodicUpdates();
+                
+                console.log('✅ SMC Trading Platform initialized');
+                
+            } catch (error) {
+                console.error('❌ Error initializing app:', error);
+            }
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function(event) {
+                console.log('🔗 WebSocket connected');
+            };
+            
+            websocket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            websocket.onclose = function(event) {
+                console.log('🔌 WebSocket disconnected');
+                // Attempt to reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            websocket.onerror = function(error) {
+                console.error('❌ WebSocket error:', error);
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'welcome':
+                    console.log('👋 Welcome message received');
+                    break;
+                case 'market_data':
+                    updateMarketPrice(data.pair, data.price);
+                    break;
+                case 'smc_analysis':
+                    displaySMCAnalysis(data);
+                    break;
+                case 'trading_signal':
+                    handleTradingSignal(data.signal);
+                    break;
+                default:
+                    console.log('📨 Unknown message:', data);
+            }
+        }
+
+        async function loadMarketData() {
+            try {
+                const pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'];
+                
+                for (const pair of pairs) {
+                    const response = await axios.get(`/api/market-data/${pair}/price`);
+                    const price = response.data.price;
+                    updateMarketPrice(pair, price);
+                }
+                
+                // Load chart data
+                await loadChartData();
+                
+            } catch (error) {
+                console.error('❌ Error loading market data:', error);
+            }
+        }
+
+        async function loadChartData() {
+            try {
+                const response = await axios.get(`/api/market-data/${currentPair}/${currentTimeframe}/100`);
+                chartData = response.data.data;
+                
+                renderChart();
+                
+            } catch (error) {
+                console.error('❌ Error loading chart data:', error);
+            }
+        }
+
+        function renderChart() {
+            if (!chartData || chartData.length === 0) return;
+            
+            const trace = {
+                x: chartData.map(d => d.timestamp),
+                open: chartData.map(d => d.open),
+                high: chartData.map(d => d.high),
+                low: chartData.map(d => d.low),
+                close: chartData.map(d => d.close),
+                type: 'candlestick',
+                name: currentPair
+            };
+            
+            const layout = {
+                title: `${currentPair} - ${currentTimeframe}`,
+                xaxis: { title: 'Time' },
+                yaxis: { title: 'Price' },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#374151' }
+            };
+            
+            Plotly.newPlot('trading-chart', [trace], layout, {responsive: true});
+        }
+
+        function updateMarketPrice(pair, price) {
+            const priceElement = document.getElementById(`price-${pair.toLowerCase()}`);
+            if (priceElement) {
+                priceElement.textContent = price.toFixed(5);
+            }
+        }
+
+        async function loadSMCSignals() {
+            try {
+                const response = await axios.get('/api/smc-signals');
+                const signals = response.data.slice(0, 10); // Show last 10 signals
+                
+                const signalsContainer = document.getElementById('smc-signals');
+                signalsContainer.innerHTML = '';
+                
+                if (signals.length === 0) {
+                    signalsContainer.innerHTML = '<div class="text-center text-gray-500 py-4">No signals available</div>';
+                    return;
+                }
+                
+                signals.forEach(signal => {
+                    const signalElement = document.createElement('div');
+                    signalElement.className = `p-3 rounded text-white text-sm ${signal.direction === 'BULLISH' ? 'signal-bullish' : 'signal-bearish'}`;
+                    signalElement.innerHTML = `
+                        <div class="font-semibold">${signal.type} - ${signal.direction}</div>
+                        <div class="text-xs opacity-90">${signal.pair} @ ${signal.price}</div>
+                        <div class="text-xs opacity-75">Confidence: ${(signal.confidence * 100).toFixed(1)}%</div>
+                    `;
+                    signalsContainer.appendChild(signalElement);
+                });
+                
+            } catch (error) {
+                console.error('❌ Error loading SMC signals:', error);
+            }
+        }
+
+        async function loadPerformanceAnalytics() {
+            try {
+                const response = await axios.get('/api/analytics/performance');
+                const analytics = response.data;
+                
+                document.getElementById('total-trades').textContent = analytics.total_trades;
+                document.getElementById('win-rate').textContent = analytics.win_rate.toFixed(1) + '%';
+                document.getElementById('profit-factor').textContent = analytics.profit_factor.toFixed(2);
+                document.getElementById('max-drawdown').textContent = analytics.max_drawdown.toFixed(1) + '%';
+                document.getElementById('account-balance').textContent = '$' + analytics.current_balance.toFixed(2);
+                
+            } catch (error) {
+                console.error('❌ Error loading performance analytics:', error);
+            }
+        }
+
+        async function loadModelStatus() {
+            try {
+                const response = await axios.get('/api/ml/model-status');
+                const status = response.data;
+                
+                const statusContainer = document.getElementById('model-status');
+                statusContainer.innerHTML = '';
+                
+                const models = ['random_forest', 'svm', 'xgboost', 'cnn', 'lstm'];
+                
+                models.forEach(model => {
+                    const modelInfo = status.models[model];
+                    const statusElement = document.createElement('div');
+                    statusElement.className = 'text-center p-4 bg-gray-50 rounded';
+                    
+                    const statusClass = modelInfo.trained ? 'status-success' : 'status-error';
+                    const statusText = modelInfo.trained ? 'Trained' : 'Not Trained';
+                    const accuracy = modelInfo.trained ? (modelInfo.accuracy * 100).toFixed(1) + '%' : 'N/A';
+                    
+                    statusElement.innerHTML = `
+                        <div class="font-semibold text-gray-800">${model.toUpperCase()}</div>
+                        <div class="text-sm ${statusClass}">${statusText}</div>
+                        <div class="text-xs text-gray-600">Accuracy: ${accuracy}</div>
+                    `;
+                    
+                    statusContainer.appendChild(statusElement);
+                });
+                
+            } catch (error) {
+                console.error('❌ Error loading model status:', error);
+            }
+        }
+
+        async function runMLAnalysis() {
+            const button = document.getElementById('run-ml-analysis');
+            button.textContent = 'Running Analysis...';
+            button.disabled = true;
+            
+            try {
+                const response = await axios.post('/api/smc-analysis', {
+                    pair: currentPair,
+                    timeframe: currentTimeframe,
+                    limit: 100
+                });
+                
+                const analysis = response.data;
+                displayMLPredictions(analysis.ml_predictions);
+                
+            } catch (error) {
+                console.error('❌ Error running ML analysis:', error);
+            } finally {
+                button.textContent = 'Run ML Analysis';
+                button.disabled = false;
+            }
+        }
+
+        function displayMLPredictions(predictions) {
+            const container = document.getElementById('ml-predictions');
+            container.innerHTML = '';
+            
+            if (!predictions || predictions.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-4">No predictions available</div>';
+                return;
+            }
+            
+            predictions.forEach(prediction => {
+                const predElement = document.createElement('div');
+                predElement.className = 'p-3 bg-gray-50 rounded border-l-4 border-blue-500';
+                predElement.innerHTML = `
+                    <div class="font-semibold text-gray-800">${prediction.model_name}</div>
+                    <div class="text-sm text-gray-600">${prediction.pattern_type} - ${prediction.direction}</div>
+                    <div class="text-xs text-gray-500">Confidence: ${(prediction.confidence * 100).toFixed(1)}%</div>
+                `;
+                container.appendChild(predElement);
+            });
+        }
+
+        function setupEventListeners() {
+            // Pair selector
+            document.getElementById('pair-selector').addEventListener('change', function(e) {
+                currentPair = e.target.value;
+                loadChartData();
+            });
+            
+            // Timeframe selector
+            document.getElementById('timeframe-selector').addEventListener('change', function(e) {
+                currentTimeframe = e.target.value;
+                loadChartData();
+            });
+            
+            // ML Analysis button
+            document.getElementById('run-ml-analysis').addEventListener('click', runMLAnalysis);
+        }
+
+        function startPeriodicUpdates() {
+            // Update market data every 5 seconds
+            setInterval(loadMarketData, 5000);
+            
+            // Update SMC signals every 30 seconds
+            setInterval(loadSMCSignals, 30000);
+            
+            // Update performance analytics every 60 seconds
+            setInterval(loadPerformanceAnalytics, 60000);
+        }
+
+        // WebSocket message handlers
+        function handleTradingSignal(signal) {
+            console.log('📊 Trading signal received:', signal);
+            // Could show notification or update UI
+        }
+
+        function displaySMCAnalysis(data) {
+            console.log('🔍 SMC Analysis received:', data);
+            // Update signals display
+            loadSMCSignals();
+        }
+    </script>
+</body>
+</html>
