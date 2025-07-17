@@ -109,21 +109,31 @@ class MarketDataService:
             async with self.session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if "values" in data:
+                    if "values" in data and data["values"]:
                         candles = []
                         for item in data["values"]:
-                            candles.append({
-                                "timestamp": datetime.fromisoformat(item["datetime"]),
-                                "open": float(item["open"]),
-                                "high": float(item["high"]),
-                                "low": float(item["low"]),
-                                "close": float(item["close"]),
-                                "volume": float(item.get("volume", 0))
-                            })
-                        return candles
+                            try:
+                                candles.append({
+                                    "timestamp": datetime.fromisoformat(item["datetime"].replace(" ", "T")),
+                                    "open": float(item["open"]),
+                                    "high": float(item["high"]),
+                                    "low": float(item["low"]),
+                                    "close": float(item["close"]),
+                                    "volume": float(item.get("volume", 0))
+                                })
+                            except (ValueError, KeyError) as e:
+                                print(f"❌ Error parsing candle data: {e}")
+                                continue
+                        
+                        if candles:
+                            return sorted(candles, key=lambda x: x["timestamp"])
+                    elif "code" in data and data["code"] == 429:
+                        print(f"Twelve Data API rate limit exceeded for historical data, using mock data for {pair}")
+                    else:
+                        print(f"Twelve Data historical API error for {pair}: {data}")
                         
         except Exception as e:
-            print(f"❌ Error getting historical data for {pair}: {e}")
+            print(f"Twelve Data historical API error for {pair}: {e}")
         
         # Return mock data if API fails
         return self._get_mock_historical_data(pair, limit)

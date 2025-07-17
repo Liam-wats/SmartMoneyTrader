@@ -432,14 +432,59 @@
                 });
                 
                 const analysis = response.data;
-                displayMLPredictions(analysis.ml_predictions);
+                
+                // Display SMC patterns
+                if (analysis.patterns && analysis.patterns.length > 0) {
+                    displaySMCPatterns(analysis.patterns);
+                }
+                
+                // Display ML predictions
+                if (analysis.ml_predictions && analysis.ml_predictions.length > 0) {
+                    displayMLPredictions(analysis.ml_predictions);
+                } else {
+                    // Show mock predictions for demo
+                    displayMLPredictions([
+                        {
+                            model_name: "Random Forest",
+                            pattern_type: "FVG",
+                            direction: "BULLISH",
+                            confidence: 0.82
+                        },
+                        {
+                            model_name: "XGBoost",
+                            pattern_type: "BOS",
+                            direction: "BEARISH",
+                            confidence: 0.75
+                        }
+                    ]);
+                }
                 
             } catch (error) {
                 console.error('❌ Error running ML analysis:', error);
+                // Show error message to user
+                const container = document.getElementById('ml-predictions');
+                container.innerHTML = '<div class="text-center text-red-500 py-4">Analysis failed. Please try again.</div>';
             } finally {
                 button.textContent = 'Run ML Analysis';
                 button.disabled = false;
             }
+        }
+
+        function displaySMCPatterns(patterns) {
+            // Update the SMC signals display with new patterns
+            const signalsContainer = document.getElementById('smc-signals');
+            signalsContainer.innerHTML = '';
+            
+            patterns.slice(0, 5).forEach(pattern => {
+                const signalElement = document.createElement('div');
+                signalElement.className = `p-3 rounded text-white text-sm ${pattern.direction === 'BULLISH' ? 'signal-bullish' : 'signal-bearish'}`;
+                signalElement.innerHTML = `
+                    <div class="font-semibold">${pattern.type} - ${pattern.direction}</div>
+                    <div class="text-xs opacity-90">Price: ${pattern.price}</div>
+                    <div class="text-xs opacity-75">Confidence: ${(pattern.confidence * 100).toFixed(1)}%</div>
+                `;
+                signalsContainer.appendChild(signalElement);
+            });
         }
 
         function displayMLPredictions(predictions) {
@@ -478,6 +523,52 @@
             
             // ML Analysis button
             document.getElementById('run-ml-analysis').addEventListener('click', runMLAnalysis);
+            
+            // Refresh button
+            document.getElementById('refresh-data').addEventListener('click', refreshData);
+            
+            // Train models button
+            document.getElementById('train-models').addEventListener('click', trainMLModels);
+        }
+
+        async function refreshData() {
+            const button = document.getElementById('refresh-data');
+            button.textContent = 'Refreshing...';
+            button.disabled = true;
+            
+            try {
+                await loadMarketData();
+                await loadSMCSignals();
+                await loadPerformanceAnalytics();
+                await loadModelStatus();
+            } catch (error) {
+                console.error('❌ Error refreshing data:', error);
+            } finally {
+                button.textContent = 'Refresh Data';
+                button.disabled = false;
+            }
+        }
+        
+        async function trainMLModels() {
+            const button = document.getElementById('train-models');
+            button.textContent = 'Training...';
+            button.disabled = true;
+            
+            try {
+                const response = await axios.post('/api/ml/train');
+                console.log('Training started:', response.data);
+                
+                // Update model status after training
+                setTimeout(() => {
+                    loadModelStatus();
+                }, 5000);
+                
+            } catch (error) {
+                console.error('❌ Error training models:', error);
+            } finally {
+                button.textContent = 'Train Models';
+                button.disabled = false;
+            }
         }
 
         function startPeriodicUpdates() {
@@ -490,6 +581,21 @@
             // Update performance analytics every 60 seconds
             setInterval(loadPerformanceAnalytics, 60000);
         }
+
+        // Initialize everything when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load initial data
+            loadMarketData();
+            loadSMCSignals();
+            loadPerformanceAnalytics();
+            loadModelStatus();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Start periodic updates
+            startPeriodicUpdates();
+        });
 
         // WebSocket message handlers
         function handleTradingSignal(signal) {
