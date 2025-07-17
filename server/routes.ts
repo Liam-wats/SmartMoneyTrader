@@ -16,6 +16,7 @@ import {
   insertBacktestSchema 
 } from "@shared/schema";
 import { alertService } from "./services/alertService";
+import { enhancedSignalDetection } from "./services/enhancedSignalDetection";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -668,6 +669,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     })().catch(error => console.error('Unhandled error in SMC signal generation:', error));
   }, 30000); // Every 30 seconds to reduce load
+
+  // Enhanced Signal Detection API endpoints
+  app.get('/api/enhanced-signals', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const signals = await enhancedSignalDetection.getLatestSignals(limit);
+      res.json(signals);
+    } catch (error) {
+      console.error('Error fetching enhanced signals:', error);
+      res.status(500).json({ error: 'Failed to fetch enhanced signals' });
+    }
+  });
+
+  app.post('/api/enhanced-signals/analyze', async (req, res) => {
+    try {
+      const { pair, timeframe } = req.body;
+      
+      if (!pair || !timeframe) {
+        return res.status(400).json({ error: 'Pair and timeframe are required' });
+      }
+      
+      const signal = await enhancedSignalDetection.analyzePair(pair, timeframe);
+      res.json(signal);
+    } catch (error) {
+      console.error('Error analyzing signal:', error);
+      res.status(500).json({ error: 'Failed to analyze signal' });
+    }
+  });
+
+  app.post('/api/enhanced-signals/start-monitoring', async (req, res) => {
+    try {
+      const { intervalMinutes = 15 } = req.body;
+      enhancedSignalDetection.startMonitoring(intervalMinutes);
+      res.json({ success: true, message: `Signal monitoring started with ${intervalMinutes} minute intervals` });
+    } catch (error) {
+      console.error('Error starting signal monitoring:', error);
+      res.status(500).json({ error: 'Failed to start signal monitoring' });
+    }
+  });
+
+  app.post('/api/enhanced-signals/stop-monitoring', async (req, res) => {
+    try {
+      enhancedSignalDetection.stopMonitoring();
+      res.json({ success: true, message: 'Signal monitoring stopped' });
+    } catch (error) {
+      console.error('Error stopping signal monitoring:', error);
+      res.status(500).json({ error: 'Failed to stop signal monitoring' });
+    }
+  });
+
+  app.get('/api/enhanced-signals/history', async (req, res) => {
+    try {
+      const history = await enhancedSignalDetection.getSignalHistory();
+      res.json(history);
+    } catch (error) {
+      console.error('Error fetching signal history:', error);
+      res.status(500).json({ error: 'Failed to fetch signal history' });
+    }
+  });
+
+  app.post('/api/telegram/test', async (req, res) => {
+    try {
+      const isConnected = await enhancedSignalDetection.testTelegramConnection();
+      res.json({ connected: isConnected });
+    } catch (error) {
+      console.error('Error testing Telegram connection:', error);
+      res.status(500).json({ error: 'Failed to test Telegram connection' });
+    }
+  });
+
+  app.post('/api/enhanced-signals/analyze-all', async (req, res) => {
+    try {
+      const signals = await enhancedSignalDetection.analyzeAllPairs();
+      res.json(signals);
+    } catch (error) {
+      console.error('Error analyzing all pairs:', error);
+      res.status(500).json({ error: 'Failed to analyze all pairs' });
+    }
+  });
+
+  // Start automatic signal monitoring on server start
+  setTimeout(() => {
+    enhancedSignalDetection.startMonitoring(15);
+  }, 5000); // Start after 5 seconds to allow server to fully initialize
 
   return httpServer;
 }

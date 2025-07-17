@@ -27,6 +27,7 @@ export default function ModernSidebar({ isStrategyActive, onToggleStrategy, isCo
   const navigationItems = [
     { path: "/", label: "Dashboard", icon: Home },
     { path: "/live-trading", label: "Live Trading", icon: TrendingUp },
+    { path: "/enhanced-signals", label: "Enhanced Signals", icon: Zap },
     { path: "/top-down-analysis", label: "Top-Down Analysis", icon: Target },
     { path: "/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/backtesting", label: "Backtesting", icon: Activity },

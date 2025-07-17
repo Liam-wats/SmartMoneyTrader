@@ -60,16 +60,27 @@ export class TechnicalAnalysisService {
       const ema50 = ema50Values[ema50Values.length - 1] || closes[closes.length - 1];
 
       // Bollinger Bands
-      const bbValues = BollingerBands.calculate({ values: closes, period: 20, stdDev: 2 });
+      const bbInput = {
+        values: closes,
+        period: 20,
+        stdDev: 2
+      };
+      const bbValues = BollingerBands.calculate(bbInput);
       const bb = bbValues[bbValues.length - 1] || { upper: closes[closes.length - 1] * 1.02, middle: closes[closes.length - 1], lower: closes[closes.length - 1] * 0.98 };
 
-      // MACD
-      const macdValues = MACD.calculate({ values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 });
-      const macd = macdValues[macdValues.length - 1] || { MACD: 0, signal: 0, histogram: 0 };
+      // MACD - ensure we have enough data
+      let macd = { MACD: 0, signal: 0, histogram: 0 };
+      if (closes.length >= 26) {
+        const macdValues = MACD.calculate({ values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 });
+        macd = macdValues[macdValues.length - 1] || macd;
+      }
 
-      // Stochastic
-      const stochValues = Stochastic.calculate({ high: highs, low: lows, close: closes, kPeriod: 14, dPeriod: 3 });
-      const stoch = stochValues[stochValues.length - 1] || { k: 50, d: 50 };
+      // Stochastic - ensure we have enough data
+      let stoch = { k: 50, d: 50 };
+      if (highs.length >= 14 && lows.length >= 14 && closes.length >= 14) {
+        const stochValues = Stochastic.calculate({ high: highs, low: lows, close: closes, kPeriod: 14, dPeriod: 3 });
+        stoch = stochValues[stochValues.length - 1] || stoch;
+      }
 
       // ATR
       const atrValues = ATR.calculate({ high: highs, low: lows, close: closes, period: 14 });

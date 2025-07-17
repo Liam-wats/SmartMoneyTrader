@@ -29,19 +29,19 @@ app.use((req, res, next) => {
 async function initializeServices() {
   try {
     // Initialize user and strategy if they don't exist
-    const user = await storage.getUserByUsername("demo_user");
+    let user = await storage.getUserByUsername("demo_user");
     if (!user) {
-      await storage.createUser({
+      user = await storage.createUser({
         username: "demo_user",
         password: "demo_password",
         accountBalance: 10000
       });
     }
     
-    const strategies = await storage.getStrategies(1);
+    const strategies = await storage.getStrategies(user.id);
     if (strategies.length === 0) {
       await storage.createStrategy({
-        userId: 1,
+        userId: user.id,
         name: "Default SMC Strategy",
         isActive: false,
         riskPercentage: 2,
