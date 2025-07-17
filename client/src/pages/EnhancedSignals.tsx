@@ -65,7 +65,10 @@ export default function EnhancedSignals() {
 
   // Test Telegram connection
   const testTelegramMutation = useMutation({
-    mutationFn: () => apiRequest('/api/telegram/test', 'POST'),
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/telegram/test');
+      return res.json();
+    },
     onSuccess: (data) => {
       toast({
         title: data.connected ? 'Telegram Connected' : 'Telegram Not Connected',
@@ -86,8 +89,10 @@ export default function EnhancedSignals() {
 
   // Start/Stop monitoring
   const monitoringMutation = useMutation({
-    mutationFn: (action: 'start' | 'stop') => 
-      apiRequest(`/api/enhanced-signals/${action}-monitoring`, 'POST', { intervalMinutes: 15 }),
+    mutationFn: async (action: 'start' | 'stop') => {
+      const res = await apiRequest('POST', `/api/enhanced-signals/${action}-monitoring`, { intervalMinutes: 15 });
+      return res.json();
+    },
     onSuccess: (data, action) => {
       setIsMonitoring(action === 'start');
       toast({
@@ -106,10 +111,13 @@ export default function EnhancedSignals() {
 
   // Analyze specific pair
   const analyzePairMutation = useMutation({
-    mutationFn: () => apiRequest('/api/enhanced-signals/analyze', 'POST', {
-      pair: selectedPair,
-      timeframe: selectedTimeframe,
-    }),
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/enhanced-signals/analyze', {
+        pair: selectedPair,
+        timeframe: selectedTimeframe,
+      });
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/enhanced-signals'] });
       toast({
@@ -128,7 +136,10 @@ export default function EnhancedSignals() {
 
   // Analyze all pairs
   const analyzeAllMutation = useMutation({
-    mutationFn: () => apiRequest('/api/enhanced-signals/analyze-all', 'POST'),
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/enhanced-signals/analyze-all');
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/enhanced-signals'] });
       toast({
