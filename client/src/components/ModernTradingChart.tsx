@@ -42,12 +42,26 @@ export default function ModernTradingChart({
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   
   const { data: candles = [], isLoading, refetch } = useQuery<CandleData[]>({
-    queryKey: [`/api/market-data/${pair}/${timeframe}/100`],
+    queryKey: [`/api/market-data/${pair}`, timeframe, '100'],
+    queryFn: async () => {
+      const response = await fetch(`/api/market-data/${pair}?timeframe=${timeframe}&limit=100`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
     refetchInterval: isPlaying ? 5000 : false,
   });
 
   const { data: priceData } = useQuery<{ price: number }>({
     queryKey: [`/api/market-data/${pair}/price`],
+    queryFn: async () => {
+      const response = await fetch(`/api/market-data/${pair}/price`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
     refetchInterval: isPlaying ? 2000 : false,
   });
 
