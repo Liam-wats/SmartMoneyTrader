@@ -16,6 +16,7 @@ import {
   insertBacktestSchema 
 } from "@shared/schema";
 import { alertService } from "./services/alertService";
+import { demoBrokerService } from "./services/demoBroker";
 import { enhancedSignalDetection } from "./services/enhancedSignalDetection";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -833,6 +834,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error testing Telegram connection:', error);
       res.status(500).json({ error: 'Failed to test Telegram connection' });
+    }
+  });
+
+  // Demo Broker Integration Routes
+  app.get('/api/broker/account', async (req, res) => {
+    try {
+      const accountInfo = await demoBrokerService.getAccountInfo();
+      res.json(accountInfo);
+    } catch (error) {
+      console.error('Error fetching account info:', error);
+      res.status(500).json({ error: 'Failed to fetch account information' });
+    }
+  });
+
+  app.get('/api/broker/positions', async (req, res) => {
+    try {
+      const positions = demoBrokerService.getPositions();
+      res.json(positions);
+    } catch (error) {
+      console.error('Error fetching positions:', error);
+      res.status(500).json({ error: 'Failed to fetch positions' });
+    }
+  });
+
+  app.get('/api/broker/orders', async (req, res) => {
+    try {
+      const orders = demoBrokerService.getOrders();
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+  });
+
+  app.post('/api/broker/execute-signal', async (req, res) => {
+    try {
+      const { signal } = req.body;
+      
+      // Get demo user
+      let user = await storage.getUserByUsername('demo_user');
+      if (!user) {
+        user = await storage.createUser({
+          username: 'demo_user',
+          password: 'demo_password',
+          accountBalance: 10000
+        });
+      }
+
+      // Get or create default strategy
+      let strategies = await storage.getStrategies(user.id);
+      if (strategies.length === 0) {
+        const defaultStrategy = await storage.createStrategy({
+          userId: user.id,
+          name: 'Default SMC Strategy',
+          isActive: true,
+          riskPercentage: 2,
+          stopLoss: 50,
+          takeProfit: 100,
+          bosConfirmation: true,
+          fvgTrading: true,
+          liquiditySweeps: false,
+          orderBlockFilter: true
+        });
+        strategies = [defaultStrategy];
+      }
+
+      // Check risk limits before execution
+      const riskCheck = await demoBrokerService.checkRiskLimits(signal);
+      if (!riskCheck) {
+        return res.status(400).json({ error: 'Risk limits exceeded' });
+      }
+
+      const orderId = await demoBrokerService.executeSignal(signal, user.id, strategies[0].id);
+      
+      // Broadcast signal execution
+      broadcast({
+        type: 'signal_executed',
+        signal,
+        orderId
+      });
+
+      res.json({ success: true, orderId });
+    } catch (error) {
+      console.error('Error executing signal:', error);
+      res.status(500).json({ error: 'Failed to execute trading signal' });
+    }
+  });
+
+  app.post('/api/broker/close-position/:id', async (req, res) => {
+    try {
+      const positionId = req.params.id;
+      const result = await demoBrokerService.closePosition(positionId);
+      
+      if (result) {
+        broadcast({
+          type: 'position_closed',
+          positionId
+        });
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: 'Position not found' });
+      }
+    } catch (error) {
+      console.error('Error closing position:', error);
+      res.status(500).json({ error: 'Failed to close position' });
     }
   });
 

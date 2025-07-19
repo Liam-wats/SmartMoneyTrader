@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Trade, Strategy, SMCSignal } from '@shared/schema';
 import Sidebar from '@/components/Sidebar';
+import BrokerIntegration from '@/components/BrokerIntegration';
 
 export default function LiveTrading() {
   const { toast } = useToast();
@@ -321,6 +322,9 @@ export default function LiveTrading() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Demo Broker Integration */}
+        <BrokerIntegration />
 
         {/* Recent Signals - Compact Layout */}
         <Card className="trading-card">
