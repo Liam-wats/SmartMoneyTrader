@@ -200,14 +200,14 @@ export class DemoBrokerService {
   }
 
   private shouldFillOrder(order: BrokerOrder, currentPrice: number): boolean {
-    // For market orders, fill immediately
-    // For limit orders, check if price reached
-    const tolerance = 0.0001; // 1 pip tolerance
+    // For demo purposes, fill orders immediately if they're market orders
+    // (close to current price within reasonable spread)
+    const tolerance = 0.0050; // 50 pip tolerance for demo
     
     if (order.type === 'BUY') {
-      return currentPrice <= order.entryPrice + tolerance;
+      return Math.abs(currentPrice - order.entryPrice) <= tolerance;
     } else {
-      return currentPrice >= order.entryPrice - tolerance;
+      return Math.abs(currentPrice - order.entryPrice) <= tolerance;
     }
   }
 

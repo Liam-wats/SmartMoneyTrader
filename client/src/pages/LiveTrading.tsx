@@ -26,9 +26,15 @@ export default function LiveTrading() {
     refetchInterval: 2000,
   });
 
-  const { data: brokerPositions } = useQuery({
+  // Use broker positions as the primary source for live trading
+  const { data: brokerPositions = [] } = useQuery({
     queryKey: ['/api/broker/positions'],
-    refetchInterval: 2000,
+    refetchInterval: 1000,
+  });
+
+  const { data: brokerAccount } = useQuery({
+    queryKey: ['/api/broker/account'],
+    refetchInterval: 1000,
   });
 
   const { data: strategies } = useQuery<Strategy[]>({
@@ -181,7 +187,7 @@ export default function LiveTrading() {
                 <DollarSign className="w-4 h-4 text-green-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Account Balance</p>
-                  <p className="text-xl font-bold">${user?.balance?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xl font-bold">${brokerAccount?.accountBalance?.toFixed(2) || user?.accountBalance?.toFixed(2) || '0.00'}</p>
                 </div>
               </div>
             </CardContent>
