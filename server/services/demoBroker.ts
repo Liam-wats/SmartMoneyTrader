@@ -288,9 +288,12 @@ export class DemoBrokerService {
         `🚀 TP: ${order.takeProfit?.toFixed(5) || 'N/A'}\n` +
         `⏰ ${new Date().toLocaleTimeString()}`;
       
-      await telegramService.sendAlert(message);
+      const sent = await telegramService.sendAlert(message);
+      if (sent) {
+        console.log('✅ Telegram notification sent successfully');
+      }
     } catch (error) {
-      console.log('Telegram notification not sent:', error.message);
+      console.log('Telegram notification not sent:', error?.message || error);
     }
   }
 
