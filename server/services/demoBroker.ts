@@ -50,6 +50,9 @@ export class DemoBrokerService {
   private readonly COMMISSION_PER_LOT = 7; // $7 per lot commission
   
   constructor() {
+    // Initialize with some demo positions for testing
+    this.initializeDemoPositions();
+    
     // Simulate order processing every 100ms
     setInterval(() => {
       this.processOrders();
@@ -59,6 +62,40 @@ export class DemoBrokerService {
     setInterval(() => {
       this.updatePositions();
     }, 1000);
+  }
+
+  private initializeDemoPositions() {
+    // Create some demo positions to show functionality
+    const demoPosition1: BrokerPosition = {
+      id: 'POS_DEMO_1',
+      pair: 'EURUSD',
+      type: 'BUY',
+      size: 0.1,
+      openPrice: 1.0845,
+      currentPrice: 1.0845,
+      pnl: 0,
+      swap: 0,
+      commission: 0.7,
+      openTime: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+    };
+
+    const demoPosition2: BrokerPosition = {
+      id: 'POS_DEMO_2', 
+      pair: 'GBPUSD',
+      type: 'SELL',
+      size: 0.15,
+      openPrice: 1.2855,
+      currentPrice: 1.2855,
+      pnl: 0,
+      swap: 0,
+      commission: 1.05,
+      openTime: new Date(Date.now() - 30 * 60 * 1000) // 30 minutes ago
+    };
+
+    this.positions.set(demoPosition1.id, demoPosition1);
+    this.positions.set(demoPosition2.id, demoPosition2);
+    
+    console.log('🎯 Initialized demo broker with 2 active positions');
   }
 
   async placeOrder(signal: TradingSignal, userId: number, strategyId: number): Promise<BrokerOrder> {
@@ -237,7 +274,24 @@ export class DemoBrokerService {
     this.orderCallbacks.forEach(callback => callback(order));
     this.positionCallbacks.forEach(callback => callback(position));
     
+    // Send browser notification via console
     console.log(`🎯 Order filled: ${order.pair} ${order.type} ${order.size} at ${fillPrice}`);
+    
+    // Send Telegram notification if configured
+    try {
+      const { telegramService } = await import('./telegramNotification');
+      const message = `🎯 *Trade Executed*\n\n` +
+        `📈 *${order.pair}* ${order.type}\n` +
+        `💰 Size: ${order.size} lots\n` +
+        `📍 Entry: ${fillPrice.toFixed(5)}\n` +
+        `🎯 SL: ${order.stopLoss?.toFixed(5) || 'N/A'}\n` +
+        `🚀 TP: ${order.takeProfit?.toFixed(5) || 'N/A'}\n` +
+        `⏰ ${new Date().toLocaleTimeString()}`;
+      
+      await telegramService.sendAlert(message);
+    } catch (error) {
+      console.log('Telegram notification not sent:', error.message);
+    }
   }
 
   private async updatePositions(): Promise<void> {
