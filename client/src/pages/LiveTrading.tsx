@@ -19,6 +19,12 @@ export default function LiveTrading() {
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceHistory, setPriceHistory] = useState<Array<{time: number, price: number}>>([]);
 
+  // Fetch current price for chart
+  const { data: priceData } = useQuery({
+    queryKey: ['/api/market-data/EURUSD/price'],
+    refetchInterval: 1000,
+  });
+
   const { isConnected, subscribe } = useWebSocket('/ws');
 
   const { data: activeTrades } = useQuery<Trade[]>({
@@ -49,6 +55,17 @@ export default function LiveTrading() {
   const { data: user } = useQuery({
     queryKey: ['/api/user'],
   });
+
+  // Update price history when price data changes
+  useEffect(() => {
+    if (priceData?.price) {
+      setCurrentPrice(priceData.price);
+      setPriceHistory(prev => [
+        ...prev.slice(-50), // Keep last 50 points
+        { time: Date.now(), price: priceData.price }
+      ]);
+    }
+  }, [priceData]);
 
   // WebSocket subscriptions for real-time updates
   useEffect(() => {
@@ -149,6 +166,15 @@ export default function LiveTrading() {
     return calculateTotalPnL();
   };
 
+  // Check if strategy should be active based on open positions
+  const hasActivePositions = brokerPositions && brokerPositions.length > 0;
+  const actualStrategyStatus = hasActivePositions;
+
+  // Calculate additional metrics
+  const totalMarginUsed = brokerAccount?.margin || 0;
+  const marginLevel = brokerAccount?.marginLevel || 0;
+  const totalEquity = brokerAccount?.equity || 10000;
+
   return (
     <>
       <Sidebar />
@@ -179,15 +205,15 @@ export default function LiveTrading() {
           </div>
         </div>
 
-        {/* Status Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Enhanced Status Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <Card className="trading-card">
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
                 <DollarSign className="w-4 h-4 text-green-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Account Balance</p>
-                  <p className="text-xl font-bold">${brokerAccount?.accountBalance?.toFixed(2) || user?.accountBalance?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xl font-bold">${brokerAccount?.accountBalance?.toFixed(2) || '10,000.00'}</p>
                 </div>
               </div>
             </CardContent>
@@ -225,9 +251,33 @@ export default function LiveTrading() {
                 <AlertTriangle className="w-4 h-4 text-yellow-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Strategy Status</p>
-                  <Badge className={isStrategyActive ? 'status-indicator buy' : 'status-indicator sell'}>
-                    {isStrategyActive ? 'ACTIVE' : 'STOPPED'}
+                  <Badge className={actualStrategyStatus ? 'status-indicator buy' : 'status-indicator sell'}>
+                    {actualStrategyStatus ? 'ACTIVE' : 'STOPPED'}
                   </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="trading-card">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Equity</p>
+                  <p className="text-xl font-bold">${brokerAccount?.equity?.toFixed(2) || '10,000.00'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="trading-card">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="w-4 h-4 text-orange-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Free Margin</p>
+                  <p className="text-xl font-bold">${brokerAccount?.freeMargin?.toFixed(2) || '10,000.00'}</p>
                 </div>
               </div>
             </CardContent>

@@ -169,23 +169,25 @@ export class DemoBrokerService {
   }
 
   async getAccountInfo(): Promise<BrokerBalance> {
-    const trades = await storage.getTrades(1);
-    const activeTrades = trades.filter(t => t.status === 'OPEN');
+    // Use broker positions (in-memory) for accurate calculations
+    const positions = Array.from(this.positions.values());
     
     let totalPnL = 0;
     let usedMargin = 0;
     
-    for (const trade of activeTrades) {
-      if (trade.pnl) {
-        totalPnL += trade.pnl;
-      }
-      // Calculate margin used (simplified)
-      const lotSize = trade.size;
-      const marginRequired = (lotSize * 100000) / this.LEVERAGE;
+    // Calculate based on actual broker positions
+    for (const position of positions) {
+      totalPnL += position.pnl;
+      
+      // Calculate margin required for this position
+      const lotSize = position.size;
+      const contractSize = 100000; // Standard forex lot size
+      const notionalValue = position.openPrice * lotSize * contractSize;
+      const marginRequired = notionalValue / this.LEVERAGE;
       usedMargin += marginRequired;
     }
     
-    const currentBalance = this.DEMO_BALANCE + totalPnL;
+    const currentBalance = this.DEMO_BALANCE;
     const equity = currentBalance + totalPnL;
     const freeMargin = Math.max(0, equity - usedMargin);
     const marginLevel = usedMargin > 0 ? (equity / usedMargin) * 100 : 0;
