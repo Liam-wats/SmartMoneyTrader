@@ -9,6 +9,7 @@ import LiveTrading from "@/pages/LiveTrading";
 import TopDownAnalysis from "@/pages/TopDownAnalysis";
 import StrategyBuilder from "@/pages/StrategyBuilder";
 import Analytics from "@/pages/Analytics";
+import EnhancedSignals from "@/pages/EnhancedSignals";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/top-down-analysis" component={TopDownAnalysis} />
       <Route path="/strategy-builder" component={StrategyBuilder} />
       <Route path="/analytics" component={Analytics} />
+      <Route path="/enhanced-signals" component={EnhancedSignals} />
       <Route component={NotFound} />
     </Switch>
   );

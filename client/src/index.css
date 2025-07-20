@@ -3,36 +3,41 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(240, 10%, 3.9%);
-  --foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 3.9%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --popover: hsl(240, 10%, 3.9%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --primary: hsl(207, 90%, 54%);
-  --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(240, 3.7%, 15.9%);
-  --secondary-foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --accent: hsl(240, 3.7%, 15.9%);
-  --accent-foreground: hsl(0, 0%, 98%);
+  --background: hsl(222, 84%, 4.9%);
+  --foreground: hsl(210, 40%, 98%);
+  --card: hsl(222, 84%, 4.9%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --popover: hsl(222, 84%, 4.9%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --primary: hsl(217, 91%, 60%);
+  --primary-foreground: hsl(222, 47%, 11%);
+  --secondary: hsl(217, 32%, 17%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --muted: hsl(217, 32%, 17%);
+  --muted-foreground: hsl(215, 20%, 65%);
+  --accent: hsl(217, 32%, 17%);
+  --accent-foreground: hsl(210, 40%, 98%);
   --destructive: hsl(0, 62.8%, 30.6%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
-  --ring: hsl(240, 4.9%, 83.9%);
-  --radius: 0.5rem;
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(217, 32%, 17%);
+  --input: hsl(217, 32%, 17%);
+  --ring: hsl(217, 91%, 60%);
+  --radius: 0.75rem;
   
-  /* Trading-specific colors */
-  --trading-dark: hsl(240, 10%, 3.9%);
-  --trading-slate: hsl(213, 12%, 17%);
-  --trading-gray: hsl(215, 8%, 22%);
-  --trading-light: hsl(213, 9%, 39%);
+  /* Modern trading platform colors */
+  --trading-bg: hsl(222, 84%, 4.9%);
+  --trading-card: hsl(217, 32%, 17%);
+  --trading-border: hsl(217, 32%, 24%);
+  --trading-muted: hsl(215, 20%, 65%);
   --profit-green: hsl(142, 76%, 36%);
   --loss-red: hsl(0, 84%, 60%);
   --neutral-blue: hsl(217, 91%, 60%);
   --warning-amber: hsl(43, 96%, 56%);
+  --success-green: hsl(142, 76%, 36%);
+  --info-blue: hsl(217, 91%, 60%);
+  --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(217, 91%, 70%) 100%);
+  --gradient-success: linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(142, 76%, 46%) 100%);
+  --gradient-danger: linear-gradient(135deg, hsl(0, 84%, 60%) 0%, hsl(0, 84%, 70%) 100%);
 }
 
 @layer base {
@@ -50,27 +55,168 @@
 
 @layer components {
   .trading-card {
-    @apply bg-secondary border border-border rounded-xl;
+    @apply bg-card border border-border rounded-xl backdrop-blur-sm;
+    background: linear-gradient(135deg, hsl(217, 32%, 17%) 0%, hsl(217, 32%, 19%) 100%);
+  }
+  
+  .trading-card-elevated {
+    @apply trading-card shadow-lg;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
   }
   
   .trading-button {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105;
   }
   
   .trading-button-primary {
-    @apply bg-primary text-primary-foreground hover:bg-blue-600;
+    @apply text-white shadow-lg;
+    background: var(--gradient-primary);
   }
   
   .trading-button-success {
-    @apply bg-green-600 text-white hover:bg-green-700;
+    @apply text-white shadow-lg;
+    background: var(--gradient-success);
   }
   
   .trading-button-danger {
-    @apply bg-red-600 text-white hover:bg-red-700;
+    @apply text-white shadow-lg;
+    background: var(--gradient-danger);
   }
   
   .trading-button-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-gray-700;
+    @apply bg-secondary text-secondary-foreground hover:bg-accent shadow-md;
+  }
+  
+  .trading-metric {
+    @apply text-sm font-medium text-muted-foreground mb-1;
+  }
+  
+  .trading-value {
+    @apply text-2xl font-bold text-foreground;
+  }
+  
+  .trading-value-success {
+    @apply text-green-400;
+  }
+  
+  .trading-value-danger {
+    @apply text-red-400;
+  }
+  
+  .trading-value-neutral {
+    @apply text-blue-400;
+  }
+  
+  .trading-status-active {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800;
+  }
+  
+  .trading-status-inactive {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800;
+  }
+  
+  .trading-glow {
+    @apply relative;
+  }
+  
+  .trading-glow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--gradient-primary);
+    border-radius: inherit;
+    filter: blur(20px);
+    opacity: 0.3;
+    z-index: -1;
+  }
+  
+  .pattern-indicator {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .pattern-fvg {
+    @apply bg-purple-100 text-purple-800;
+  }
+  
+  .pattern-bos {
+    @apply bg-blue-100 text-blue-800;
+  }
+  
+  .pattern-ob {
+    @apply bg-orange-100 text-orange-800;
+  }
+  
+  .pattern-ls {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .pattern-choch {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .sidebar-nav {
+    @apply flex flex-col space-y-2 p-4;
+  }
+  
+  .sidebar-nav-item {
+    @apply flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors;
+  }
+  
+  .sidebar-nav-item:hover {
+    @apply bg-accent text-accent-foreground;
+  }
+  
+  .sidebar-nav-item.active {
+    @apply bg-primary text-primary-foreground;
+  }
+  
+  .chart-container {
+    @apply relative w-full h-96 bg-card rounded-lg border border-border p-4;
+  }
+  
+  .signal-badge {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .signal-bullish {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .signal-bearish {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .performance-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
+  }
+  
+  .dashboard-grid {
+    @apply grid grid-cols-1 lg:grid-cols-3 gap-6;
+  }
+  
+  .dashboard-main {
+    @apply lg:col-span-2 space-y-6;
+  }
+  
+  .dashboard-sidebar {
+    @apply space-y-6;
+  }
+  
+  .glassmorphism {
+    @apply backdrop-blur-md;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-bounce-slow {
+    animation: bounce 2s infinite;
   }
   
   .trading-input {
@@ -91,6 +237,83 @@
   
   .neutral-text {
     @apply text-blue-500;
+  }
+
+  .performance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 2rem;
+    height: 100%;
+  }
+
+  .dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    overflow-y: auto;
+  }
+
+  .dashboard-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+  }
+
+  .trading-card {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+  }
+
+  .trading-card-elevated {
+    @apply bg-card border border-border rounded-lg shadow-lg;
+    background: linear-gradient(135deg, hsl(240, 10%, 3.9%) 0%, hsl(240, 5%, 6%) 100%);
+  }
+
+  .trading-button {
+    @apply bg-primary text-primary-foreground hover:opacity-90 px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+
+  .trading-button-success {
+    @apply bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+
+  .trading-button-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+
+  .trading-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:opacity-80 px-3 py-2 rounded-md text-sm transition-colors;
+  }
+
+  .sidebar-nav-item {
+    @apply flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer;
+    @apply text-muted-foreground hover:text-foreground hover:bg-accent;
+  }
+
+  .sidebar-nav-item.active {
+    @apply bg-primary bg-opacity-20 text-primary border-l-2 border-primary;
+  }
+
+  .chart-container {
+    @apply w-full h-96 bg-card rounded-lg border border-border overflow-hidden;
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    
+    .performance-grid {
+      grid-template-columns: 1fr;
+    }
   }
 }
 

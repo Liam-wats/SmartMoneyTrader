@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import Sidebar from '@/components/Sidebar';
-import TradingChart from '@/components/TradingChart';
-import PerformanceCards from '@/components/PerformanceCards';
-import SMCSignals from '@/components/SMCSignals';
+import ModernSidebar from '@/components/ModernSidebar';
+import ModernTradingChart from '@/components/ModernTradingChart';
+import ModernPerformanceCards from '@/components/ModernPerformanceCards';
+import ModernSMCSignals from '@/components/ModernSMCSignals';
 import ActiveTrades from '@/components/ActiveTrades';
 import StrategySettings from '@/components/StrategySettings';
 import PerformanceAnalytics from '@/components/PerformanceAnalytics';
@@ -127,7 +127,11 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <Sidebar />
+      <ModernSidebar 
+        isStrategyActive={isStrategyActive}
+        onToggleStrategy={isStrategyActive ? handleStopStrategy : handleStartStrategy}
+        isConnected={isConnected}
+      />
       
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -172,33 +176,29 @@ export default function Dashboard() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 space-y-6">
-          <PerformanceCards />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <TradingChart 
+        <main className="flex-1 p-6">
+          <div className="dashboard-grid">
+            <div className="dashboard-main">
+              <ModernPerformanceCards />
+              <ModernTradingChart 
                 pair={selectedPair}
                 timeframe={selectedTimeframe}
                 onPairChange={setSelectedPair}
                 onTimeframeChange={setSelectedTimeframe}
               />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <TopDownAnalysis pair={selectedPair} />
+                <MLPatternRecognition pair={selectedPair} timeframe={selectedTimeframe} />
+              </div>
+              <PerformanceAnalytics />
             </div>
             
-            <SMCSignals />
+            <div className="dashboard-sidebar">
+              <ModernSMCSignals />
+              <ActiveTrades />
+              <StrategySettings />
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TopDownAnalysis pair={selectedPair} />
-            <MLPatternRecognition pair={selectedPair} timeframe={selectedTimeframe} />
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ActiveTrades />
-            <StrategySettings />
-          </div>
-          
-          <PerformanceAnalytics />
         </main>
       </div>
     </div>

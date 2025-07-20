@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Trade, Strategy, SMCSignal } from '@shared/schema';
 import Sidebar from '@/components/Sidebar';
+import BrokerIntegration from '@/components/BrokerIntegration';
 
 export default function LiveTrading() {
   const { toast } = useToast();
@@ -18,11 +19,28 @@ export default function LiveTrading() {
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceHistory, setPriceHistory] = useState<Array<{time: number, price: number}>>([]);
 
+  // Fetch current price for chart
+  const { data: priceData } = useQuery({
+    queryKey: ['/api/market-data/EURUSD/price'],
+    refetchInterval: 1000,
+  });
+
   const { isConnected, subscribe } = useWebSocket('/ws');
 
   const { data: activeTrades } = useQuery<Trade[]>({
     queryKey: ['/api/trades/active'],
     refetchInterval: 2000,
+  });
+
+  // Use broker positions as the primary source for live trading
+  const { data: brokerPositions = [], isLoading: positionsLoading } = useQuery({
+    queryKey: ['/api/broker/positions'],
+    refetchInterval: 1000,
+  });
+
+  const { data: brokerAccount, isLoading: accountLoading } = useQuery({
+    queryKey: ['/api/broker/account'],
+    refetchInterval: 1000,
   });
 
   const { data: strategies } = useQuery<Strategy[]>({
@@ -37,6 +55,17 @@ export default function LiveTrading() {
   const { data: user } = useQuery({
     queryKey: ['/api/user'],
   });
+
+  // Update price history when price data changes
+  useEffect(() => {
+    if (priceData?.price) {
+      setCurrentPrice(priceData.price);
+      setPriceHistory(prev => [
+        ...prev.slice(-50), // Keep last 50 points
+        { time: Date.now(), price: priceData.price }
+      ]);
+    }
+  }, [priceData]);
 
   // WebSocket subscriptions for real-time updates
   useEffect(() => {
@@ -129,13 +158,26 @@ export default function LiveTrading() {
   });
 
   const calculateTotalPnL = () => {
-    return activeTrades?.reduce((total, trade) => total + (trade.pnl || 0), 0) || 0;
+    if (!brokerPositions || brokerPositions.length === 0) return 0;
+    const total = brokerPositions.reduce((total, position) => {
+      return total + (position.pnl || 0);
+    }, 0);
+    return total;
   };
 
   const calculateDaysPnL = () => {
     // Simplified calculation - in real app would filter by today's trades
     return calculateTotalPnL();
   };
+
+  // Check if strategy should be active based on open positions
+  const hasActivePositions = brokerPositions && brokerPositions.length > 0;
+  const actualStrategyStatus = hasActivePositions;
+
+  // Calculate additional metrics
+  const totalMarginUsed = brokerAccount?.margin || 0;
+  const marginLevel = brokerAccount?.marginLevel || 0;
+  const totalEquity = brokerAccount?.equity || 10000;
 
   return (
     <>
@@ -167,15 +209,17 @@ export default function LiveTrading() {
           </div>
         </div>
 
-        {/* Status Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Enhanced Status Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <Card className="trading-card">
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
                 <DollarSign className="w-4 h-4 text-green-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Account Balance</p>
-                  <p className="text-xl font-bold">${user?.balance?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xl font-bold">
+                    {accountLoading ? 'Loading...' : `$${(brokerAccount?.accountBalance || 10000).toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -187,7 +231,9 @@ export default function LiveTrading() {
                 <Activity className="w-4 h-4 text-blue-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Active Trades</p>
-                  <p className="text-xl font-bold">{activeTrades?.length || 0}</p>
+                  <p className="text-xl font-bold">
+                    {positionsLoading ? 'Loading...' : (brokerPositions?.length || 0)}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -213,9 +259,37 @@ export default function LiveTrading() {
                 <AlertTriangle className="w-4 h-4 text-yellow-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Strategy Status</p>
-                  <Badge className={isStrategyActive ? 'status-indicator buy' : 'status-indicator sell'}>
-                    {isStrategyActive ? 'ACTIVE' : 'STOPPED'}
+                  <Badge className={actualStrategyStatus ? 'status-indicator buy' : 'status-indicator sell'}>
+                    {actualStrategyStatus ? 'ACTIVE' : 'STOPPED'}
                   </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="trading-card">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Equity</p>
+                  <p className="text-xl font-bold">
+                    {accountLoading ? 'Loading...' : `$${(brokerAccount?.equity || 10000).toFixed(2)}`}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="trading-card">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="w-4 h-4 text-orange-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Free Margin</p>
+                  <p className="text-xl font-bold">
+                    {accountLoading ? 'Loading...' : `$${(brokerAccount?.freeMargin || 10000).toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -266,53 +340,52 @@ export default function LiveTrading() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4 max-h-64 overflow-y-auto">
-                {activeTrades?.length === 0 ? (
+                {(!brokerPositions || brokerPositions?.length === 0) ? (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground">No active trades</p>
+                    <p className="text-muted-foreground">No active positions</p>
                   </div>
                 ) : (
-                  activeTrades?.map((trade) => (
-                    <div key={trade.id} className="p-3 bg-muted/30 rounded-lg">
+                  brokerPositions?.map((position) => (
+                    <div key={position.id} className="p-3 bg-muted/30 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
-                          <Badge className={trade.type === 'BUY' ? 'status-indicator buy' : 'status-indicator sell'}>
-                            {trade.type}
+                          <Badge className={position.type === 'BUY' ? 'status-indicator buy' : 'status-indicator sell'}>
+                            {position.type}
                           </Badge>
-                          <span className="font-mono font-medium">{trade.pair}</span>
+                          <span className="font-mono font-medium">{position.pair}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          Size: {trade.size}
+                          Size: {position.size}
                         </span>
                       </div>
                       
                       <div className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Entry:</span>
-                          <span className="font-mono">{trade.entryPrice.toFixed(5)}</span>
+                          <span className="font-mono">{position.openPrice.toFixed(5)}</span>
                         </div>
                         
-                        {trade.stopLoss && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Stop Loss:</span>
-                            <span className="font-mono text-red-500">{trade.stopLoss.toFixed(5)}</span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Current:</span>
+                          <span className="font-mono">{position.currentPrice.toFixed(5)}</span>
+                        </div>
                         
-                        {trade.takeProfit && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Take Profit:</span>
-                            <span className="font-mono text-green-500">{trade.takeProfit.toFixed(5)}</span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Commission:</span>
+                          <span className="font-mono text-orange-500">-${position.commission.toFixed(2)}</span>
+                        </div>
                         
-                        {trade.pnl !== undefined && trade.pnl !== null && (
-                          <div className="flex justify-between text-sm pt-1 border-t border-border">
-                            <span className="text-muted-foreground">P&L:</span>
-                            <span className={`font-mono font-bold ${trade.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-sm pt-1 border-t border-border">
+                          <span className="text-muted-foreground">P&L:</span>
+                          <span className={`font-mono font-bold ${position.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {position.pnl >= 0 ? '+' : ''}${position.pnl.toFixed(2)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Open Time:</span>
+                          <span className="font-mono text-xs">{new Date(position.openTime).toLocaleTimeString()}</span>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -321,6 +394,9 @@ export default function LiveTrading() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Demo Broker Integration */}
+        <BrokerIntegration />
 
         {/* Recent Signals - Compact Layout */}
         <Card className="trading-card">

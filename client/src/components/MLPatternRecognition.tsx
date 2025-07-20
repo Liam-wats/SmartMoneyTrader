@@ -39,11 +39,19 @@ export default function MLPatternRecognition({ pair, timeframe }: MLPatternRecog
   const { data: predictions, refetch } = useQuery({
     queryKey: ['/api/ml-pattern-analysis', pair, timeframe],
     queryFn: async () => {
-      const response = await apiRequest('/api/ml-pattern-analysis', {
+      const response = await fetch('/api/ml-pattern-analysis', {
         method: 'POST',
-        body: { pair, timeframe, limit: 100 },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pair, timeframe, limit: 100 }),
       });
-      return response as MLPatternPrediction[];
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return response.json() as Promise<MLPatternPrediction[]>;
     },
     enabled: false,
   });

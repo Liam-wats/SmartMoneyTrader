@@ -1,70 +1,89 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express from "express";
+import { config } from "dotenv";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite } from "./vite";
+import { storage } from "./storage";
+
+// Load environment variables
+config();
+import { marketDataService } from "./services/marketData";
+import { smcDetectionService } from "./services/smcDetection";
+import { alertService } from "./services/alertService";
 
 const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
+// CORS middleware
 app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
 });
 
-(async () => {
-  const server = await registerRoutes(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+// Initialize storage and services
+async function initializeServices() {
+  try {
+    // Initialize user and strategy if they don't exist
+    let user = await storage.getUserByUsername("demo_user");
+    if (!user) {
+      user = await storage.createUser({
+        username: "demo_user",
+        password: "demo_password",
+        accountBalance: 10000
+      });
+    }
+    
+    const strategies = await storage.getStrategies(user.id);
+    if (strategies.length === 0) {
+      await storage.createStrategy({
+        userId: user.id,
+        name: "Default SMC Strategy",
+        isActive: false,
+        riskPercentage: 2,
+        stopLoss: 50,
+        takeProfit: 100,
+        bosConfirmation: true,
+        fvgTrading: true,
+        liquiditySweeps: false,
+        orderBlockFilter: true
+      });
+    }
+    
+    console.log("✅ Services initialized successfully");
+  } catch (error) {
+    console.error("❌ Error initializing services:", error);
   }
+}
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+// Register API routes and WebSocket
+registerRoutes(app).then(server => {
+  // Setup Vite dev server
+  setupVite(app, server);
+  
+  // Initialize services after server is ready
+  initializeServices();
+  
+  // Start server
+  server.listen(PORT, () => {
+    console.log(`[express] serving on port ${PORT}`);
   });
-})();
+  
+  // Graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('🛑 Shutting down gracefully...');
+    server.close();
+    process.exit(0);
+  });
+}).catch(error => {
+  console.error("❌ Failed to start server:", error);
+  process.exit(1);
+});
