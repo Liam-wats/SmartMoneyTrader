@@ -33,12 +33,12 @@ export default function LiveTrading() {
   });
 
   // Use broker positions as the primary source for live trading
-  const { data: brokerPositions = [] } = useQuery({
+  const { data: brokerPositions = [], isLoading: positionsLoading } = useQuery({
     queryKey: ['/api/broker/positions'],
     refetchInterval: 1000,
   });
 
-  const { data: brokerAccount } = useQuery({
+  const { data: brokerAccount, isLoading: accountLoading } = useQuery({
     queryKey: ['/api/broker/account'],
     refetchInterval: 1000,
   });
@@ -158,7 +158,11 @@ export default function LiveTrading() {
   });
 
   const calculateTotalPnL = () => {
-    return brokerPositions?.reduce((total, position) => total + (position.pnl || 0), 0) || 0;
+    if (!brokerPositions || brokerPositions.length === 0) return 0;
+    const total = brokerPositions.reduce((total, position) => {
+      return total + (position.pnl || 0);
+    }, 0);
+    return total;
   };
 
   const calculateDaysPnL = () => {
@@ -213,7 +217,9 @@ export default function LiveTrading() {
                 <DollarSign className="w-4 h-4 text-green-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Account Balance</p>
-                  <p className="text-xl font-bold">${brokerAccount?.accountBalance?.toFixed(2) || '10,000.00'}</p>
+                  <p className="text-xl font-bold">
+                    {accountLoading ? 'Loading...' : `$${(brokerAccount?.accountBalance || 10000).toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -225,7 +231,9 @@ export default function LiveTrading() {
                 <Activity className="w-4 h-4 text-blue-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Active Trades</p>
-                  <p className="text-xl font-bold">{brokerPositions?.length || 0}</p>
+                  <p className="text-xl font-bold">
+                    {positionsLoading ? 'Loading...' : (brokerPositions?.length || 0)}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -265,7 +273,9 @@ export default function LiveTrading() {
                 <TrendingUp className="w-4 h-4 text-blue-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Equity</p>
-                  <p className="text-xl font-bold">${brokerAccount?.equity?.toFixed(2) || '10,000.00'}</p>
+                  <p className="text-xl font-bold">
+                    {accountLoading ? 'Loading...' : `$${(brokerAccount?.equity || 10000).toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -277,7 +287,9 @@ export default function LiveTrading() {
                 <DollarSign className="w-4 h-4 text-orange-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Free Margin</p>
-                  <p className="text-xl font-bold">${brokerAccount?.freeMargin?.toFixed(2) || '10,000.00'}</p>
+                  <p className="text-xl font-bold">
+                    {accountLoading ? 'Loading...' : `$${(brokerAccount?.freeMargin || 10000).toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </CardContent>

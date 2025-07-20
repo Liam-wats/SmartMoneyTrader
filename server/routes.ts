@@ -579,15 +579,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accountBalance: 10000
         });
       }
+      // Get both completed and active trades
       const trades = await storage.getTrades(user.id);
       const completedTrades = trades.filter(t => t.status === 'CLOSED');
       
-      const totalTrades = completedTrades.length;
-      const winningTrades = completedTrades.filter(t => (t.pnl || 0) > 0).length;
-      const losingTrades = completedTrades.filter(t => (t.pnl || 0) < 0).length;
-      const totalProfit = completedTrades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
-      const totalLoss = completedTrades.filter(t => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
-      const totalPnL = completedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+      // Get live broker positions for current P&L
+      const brokerPositions = demoBrokerService.getPositions();
+      const currentPnL = brokerPositions.reduce((sum, pos) => sum + pos.pnl, 0);
+      
+      // Include both completed trades and current open positions
+      const totalTrades = completedTrades.length + brokerPositions.length;
+      const winningTrades = completedTrades.filter(t => (t.pnl || 0) > 0).length + 
+                           brokerPositions.filter(p => p.pnl > 0).length;
+      const losingTrades = completedTrades.filter(t => (t.pnl || 0) < 0).length + 
+                          brokerPositions.filter(p => p.pnl < 0).length;
+      
+      const completedProfit = completedTrades.filter(t => (t.pnl || 0) > 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const completedLoss = completedTrades.filter(t => (t.pnl || 0) < 0).reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const currentProfit = brokerPositions.filter(p => p.pnl > 0).reduce((sum, p) => sum + p.pnl, 0);
+      const currentLoss = brokerPositions.filter(p => p.pnl < 0).reduce((sum, p) => sum + p.pnl, 0);
+      
+      const totalProfit = completedProfit + currentProfit;
+      const totalLoss = completedLoss + currentLoss;
+      const totalPnL = completedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0) + currentPnL;
       const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
       const profitFactor = totalLoss < 0 ? Math.abs(totalProfit / totalLoss) : totalProfit > 0 ? 999 : 0;
       
