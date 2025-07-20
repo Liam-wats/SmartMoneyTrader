@@ -152,16 +152,6 @@ export class EnhancedSignalDetectionService {
     return signals.slice(0, limit);
   }
 
-  async getSignalHistory(): Promise<any[]> {
-    const history = Array.from(this.lastSignalTime.entries()).map(([key, timestamp]) => ({
-      pair: key.split('-')[0],
-      timeframe: key.split('-')[1],
-      lastSignalTime: new Date(timestamp).toISOString()
-    }));
-
-    return history.sort((a, b) => new Date(b.lastSignalTime).getTime() - new Date(a.lastSignalTime).getTime());
-  }
-
   async getActiveSignals(): Promise<TradingSignal[]> {
     // Return the most recent signals from the last 24 hours
     const signals = this.signalHistory.filter(signal => 

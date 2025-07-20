@@ -20,7 +20,7 @@ export interface MarketDataService {
 export class TwelveDataMarketDataService implements MarketDataService {
   private priceSubscriptions: Map<string, (price: number) => void> = new Map();
   private priceIntervals: Map<string, NodeJS.Timeout> = new Map();
-  private readonly API_KEY = process.env.TWELVE_DATA_API_KEY || '670c76c15401482e939dff52a32d6fe8';
+  private readonly API_KEY = process.env.TWELVEDATA_API_KEY || '670c76c15401482e939dff52a32d6fe8';
   private rateLimitCache: Map<string, { price: number; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 60000; // 1 minute cache to avoid rate limits
   private readonly MAX_RETRIES = 3;

@@ -821,16 +821,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Telegram API Routes
   app.post('/api/telegram/test', async (req, res) => {
     try {
-      const connected = process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID;
-      if (connected) {
-        // Test the connection by sending a test message
-        const { telegramService } = await import('./services/telegramNotification');
-        await telegramService.sendMessage('🔧 Test message from SMC Trading Platform');
-      }
-      res.json({ 
-        connected: !!connected,
-        message: connected ? 'Test message sent successfully' : 'Telegram not configured'
-      });
+      const { message } = req.body;
+      console.log('Testing Telegram with message:', message);
+      
+      // Create a new instance to test with fresh environment variables
+      const { TelegramNotificationService } = await import('./services/telegramNotification');
+      const testTelegramService = new TelegramNotificationService();
+      
+      const result = await testTelegramService.sendAlert(message || '🚨 TEST: SMC Trading Platform - Telegram notifications working!');
+      console.log('Telegram test result:', result);
+      res.json({ connected: result });
     } catch (error) {
       console.error('Error testing Telegram connection:', error);
       res.status(500).json({ error: 'Failed to test Telegram connection' });

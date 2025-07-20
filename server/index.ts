@@ -1,7 +1,11 @@
 import express from "express";
+import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite } from "./vite";
 import { storage } from "./storage";
+
+// Load environment variables
+config();
 import { marketDataService } from "./services/marketData";
 import { smcDetectionService } from "./services/smcDetection";
 import { alertService } from "./services/alertService";

@@ -14,18 +14,25 @@ export class TelegramNotificationService {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
+    console.log('Telegram env check:', { 
+      hasToken: !!token, 
+      hasChatId: !!chatId,
+      tokenStart: token ? token.substring(0, 10) + '...' : 'undefined',
+      chatId: chatId || 'undefined'
+    });
+
     if (token && chatId) {
       try {
         this.bot = new TelegramBot(token, { polling: false });
         this.chatId = chatId;
         this.isEnabled = true;
-        console.log('Telegram notification service initialized successfully');
+        console.log('✅ Telegram notification service initialized successfully');
       } catch (error) {
         console.error('Failed to initialize Telegram bot:', error);
         this.isEnabled = false;
       }
     } else {
-      console.log('Telegram bot token or chat ID not configured');
+      console.log('❌ Telegram bot token or chat ID not configured');
       this.isEnabled = false;
     }
   }
@@ -51,17 +58,25 @@ export class TelegramNotificationService {
   }
 
   async sendAlert(message: string): Promise<boolean> {
+    console.log('Attempting to send Telegram alert:', { 
+      isEnabled: this.isEnabled, 
+      hasBot: !!this.bot, 
+      hasChatId: !!this.chatId,
+      message: message.substring(0, 50) + '...'
+    });
+
     if (!this.isEnabled || !this.bot || !this.chatId) {
+      console.log('Telegram not properly configured');
       return false;
     }
 
     try {
-      await this.bot.sendMessage(this.chatId, message, {
+      const result = await this.bot.sendMessage(this.chatId, message, {
         parse_mode: 'Markdown',
         disable_web_page_preview: true
       });
       
-      console.log('Telegram alert sent');
+      console.log('✅ Telegram alert sent successfully:', result.message_id);
       return true;
     } catch (error) {
       console.error('Failed to send Telegram alert:', error);
