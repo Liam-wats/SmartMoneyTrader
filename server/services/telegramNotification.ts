@@ -5,9 +5,17 @@ export class TelegramNotificationService {
   private bot: TelegramBot | null = null;
   private chatId: string | null = null;
   private isEnabled: boolean = false;
+  private initialized: boolean = false;
 
   constructor() {
-    this.initialize();
+    // Don't initialize immediately - wait for lazy initialization
+  }
+
+  private ensureInitialized() {
+    if (!this.initialized) {
+      this.initialize();
+      this.initialized = true;
+    }
   }
 
   private initialize() {
@@ -38,6 +46,8 @@ export class TelegramNotificationService {
   }
 
   async sendTradingSignal(signal: TradingSignal, message: string): Promise<boolean> {
+    this.ensureInitialized();
+    
     if (!this.isEnabled || !this.bot || !this.chatId) {
       console.log('Telegram notification service not enabled or configured');
       return false;
@@ -58,6 +68,8 @@ export class TelegramNotificationService {
   }
 
   async sendAlert(message: string): Promise<boolean> {
+    this.ensureInitialized();
+    
     console.log('Attempting to send Telegram alert:', { 
       isEnabled: this.isEnabled, 
       hasBot: !!this.bot, 
@@ -100,6 +112,10 @@ export class TelegramNotificationService {
   }
 
   isConfigured(): boolean {
+    this.ensureInitialized();
     return this.isEnabled;
   }
 }
+
+// Create singleton instance
+export const telegramService = new TelegramNotificationService();
