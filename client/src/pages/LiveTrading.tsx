@@ -26,6 +26,11 @@ export default function LiveTrading() {
     refetchInterval: 2000,
   });
 
+  const { data: brokerPositions } = useQuery({
+    queryKey: ['/api/broker/positions'],
+    refetchInterval: 2000,
+  });
+
   const { data: strategies } = useQuery<Strategy[]>({
     queryKey: ['/api/strategies'],
   });
@@ -130,7 +135,7 @@ export default function LiveTrading() {
   });
 
   const calculateTotalPnL = () => {
-    return activeTrades?.reduce((total, trade) => total + (trade.pnl || 0), 0) || 0;
+    return brokerPositions?.reduce((total, position) => total + (position.pnl || 0), 0) || 0;
   };
 
   const calculateDaysPnL = () => {
@@ -188,7 +193,7 @@ export default function LiveTrading() {
                 <Activity className="w-4 h-4 text-blue-500" />
                 <div>
                   <p className="text-xs text-muted-foreground">Active Trades</p>
-                  <p className="text-xl font-bold">{activeTrades?.length || 0}</p>
+                  <p className="text-xl font-bold">{brokerPositions?.length || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -267,53 +272,52 @@ export default function LiveTrading() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4 max-h-64 overflow-y-auto">
-                {activeTrades?.length === 0 ? (
+                {(!brokerPositions || brokerPositions?.length === 0) ? (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground">No active trades</p>
+                    <p className="text-muted-foreground">No active positions</p>
                   </div>
                 ) : (
-                  activeTrades?.map((trade) => (
-                    <div key={trade.id} className="p-3 bg-muted/30 rounded-lg">
+                  brokerPositions?.map((position) => (
+                    <div key={position.id} className="p-3 bg-muted/30 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
-                          <Badge className={trade.type === 'BUY' ? 'status-indicator buy' : 'status-indicator sell'}>
-                            {trade.type}
+                          <Badge className={position.type === 'BUY' ? 'status-indicator buy' : 'status-indicator sell'}>
+                            {position.type}
                           </Badge>
-                          <span className="font-mono font-medium">{trade.pair}</span>
+                          <span className="font-mono font-medium">{position.pair}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          Size: {trade.size}
+                          Size: {position.size}
                         </span>
                       </div>
                       
                       <div className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Entry:</span>
-                          <span className="font-mono">{trade.entryPrice.toFixed(5)}</span>
+                          <span className="font-mono">{position.openPrice.toFixed(5)}</span>
                         </div>
                         
-                        {trade.stopLoss && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Stop Loss:</span>
-                            <span className="font-mono text-red-500">{trade.stopLoss.toFixed(5)}</span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Current:</span>
+                          <span className="font-mono">{position.currentPrice.toFixed(5)}</span>
+                        </div>
                         
-                        {trade.takeProfit && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Take Profit:</span>
-                            <span className="font-mono text-green-500">{trade.takeProfit.toFixed(5)}</span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Commission:</span>
+                          <span className="font-mono text-orange-500">-${position.commission.toFixed(2)}</span>
+                        </div>
                         
-                        {trade.pnl !== undefined && trade.pnl !== null && (
-                          <div className="flex justify-between text-sm pt-1 border-t border-border">
-                            <span className="text-muted-foreground">P&L:</span>
-                            <span className={`font-mono font-bold ${trade.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-sm pt-1 border-t border-border">
+                          <span className="text-muted-foreground">P&L:</span>
+                          <span className={`font-mono font-bold ${position.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {position.pnl >= 0 ? '+' : ''}${position.pnl.toFixed(2)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Open Time:</span>
+                          <span className="font-mono text-xs">{new Date(position.openTime).toLocaleTimeString()}</span>
+                        </div>
                       </div>
                     </div>
                   ))
