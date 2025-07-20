@@ -79,15 +79,42 @@ export class TechnicalAnalysisService {
       // Stochastic - ensure we have enough data
       let stoch = { k: 50, d: 50 };
       if (highs.length >= 14 && lows.length >= 14 && closes.length >= 14) {
-        const stochValues = Stochastic.calculate({ high: highs, low: lows, close: closes, kPeriod: 14, dPeriod: 3 });
-        stoch = stochValues[stochValues.length - 1] || stoch;
+        try {
+          const stochValues = Stochastic.calculate({ 
+            high: highs.slice(-50), 
+            low: lows.slice(-50), 
+            close: closes.slice(-50), 
+            kPeriod: 14, 
+            dPeriod: 3 
+          });
+          stoch = stochValues[stochValues.length - 1] || stoch;
+        } catch (error) {
+          console.log('Stochastic calculation fallback:', error.message);
+          const currentHigh = highs[highs.length - 1];
+          const currentLow = lows[lows.length - 1];
+          const currentClose = closes[closes.length - 1];
+          const highestHigh = Math.max(...highs.slice(-14));
+          const lowestLow = Math.min(...lows.slice(-14));
+          stoch.k = ((currentClose - lowestLow) / (highestHigh - lowestLow)) * 100;
+          stoch.d = stoch.k;
+        }
       }
 
       // ATR - ensure we have enough data
       let atr = 0.001;
       if (highs.length >= 14 && lows.length >= 14 && closes.length >= 14) {
-        const atrValues = ATR.calculate({ high: highs, low: lows, close: closes, period: 14 });
-        atr = atrValues[atrValues.length - 1] || atr;
+        try {
+          const atrValues = ATR.calculate({ 
+            high: highs.slice(-50), 
+            low: lows.slice(-50), 
+            close: closes.slice(-50), 
+            period: 14 
+          });
+          atr = atrValues[atrValues.length - 1] || atr;
+        } catch (error) {
+          console.log('ATR calculation fallback:', error.message);
+          atr = (highs[highs.length - 1] - lows[lows.length - 1]) * 0.1;
+        }
       }
 
       return {
